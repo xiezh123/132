@@ -137,7 +137,7 @@ if [[ $REPLY == "" || $REPLY == "y" ]]; then
   fi
   if [[ $confirm_install == "y" ]]; then
     echo "安装zip、byobu、cron、btrfs-progs等软件包"
-    apt-get install zip byobu cron btrfs-progs && sleep 6
+    apt-get install zip byobu cron btrfs-progs -y && sleep 6
     byobu-enable
   else
     echo "操作已取消"
