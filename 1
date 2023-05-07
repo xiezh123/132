@@ -51,7 +51,7 @@ if [ "$option" == "1" ]; then
     sudo sh get-docker.sh
     elif [ "$option" == "2" ]; then
       echo "从阿里云安装Docker"
-      curl -fsSL https://get.docker.com | sed 's/docker-ce/docker-ce -o debuntu/g' - | CHANNEL=stable bash
+      curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
     elif [ "$option" == "3" ]; then
       echo "从DaoCloud安装Docker"
       curl -sSL https://get.daocloud.io/docker | sh
