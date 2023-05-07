@@ -147,6 +147,7 @@ if [[ $REPLY == "" || $REPLY == "y" ]]; then
   echo ""
   if [[ -z $prompt ]]; then
     echo "正在清理垃圾..."
+    byobu-enable
     eval "$clean_commands" && sleep 2
     if [[ $(grep -c btrfs /proc/mounts) -gt 0 ]]; then
       echo "正在压缩系统..."
