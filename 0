@@ -1,0 +1,164 @@
+#!/bin/bash
+
+# Add /root to the PATH environment variable
+echo 'export PATH="$PATH:/root/Quick"' >> ~/.bashrc
+
+# Reload the updated .bashrc file
+source ~/.bashrc
+
+echo '/root has been added to the PATH variable'
+
+# 垃圾清理命令，可根据需要自行修改
+clean_commands="apt-get clean
+journalctl --vacuum-size=5M
+echo > /var/log/syslog
+echo > /var/log/syslog.1
+echo > /var/log/mail.log.1
+echo > /var/log/mail.info.1
+echo > /var/log/mail.warn.1
+echo > /var/log/mail.err.1
+echo > /var/log/mail.log
+echo > /var/log/mail.info
+echo > /var/log/mail.warn
+echo > /var/log/mail.err
+echo \"清理垃圾完成\""
+
+# 配置文件路径和标志文件路径
+CONFIG_DIR="/root/Quick"
+CONFIG_FILE="$CONFIG_DIR/config.cfg"
+HOST_MODE_FLAG="$CONFIG_DIR/host_mode_enabled"
+
+# 确保目录存在
+mkdir -p "$CONFIG_DIR"
+
+# 如果配置文件存在则不再提示用户是否启用主机模式
+if [[ -f "$CONFIG_FILE" ]]; then
+  echo "脚本已经被执行过，不再提示用户是否启用主机模式"
+else
+  # 提示用户是否启用主机模式
+  read -t 5 -p "是否需要启用主机模式？按回车键确认启用，否则等待5秒后将不启用。（y/n）：" confirm
+  if [ "$confirm" == "y" ]; then
+    echo "正在添加主机模式..."
+    sudo sed -i '/exit 0/i\sleep 45\n echo host > /sys/kernel/debug/usb/ci_hdrc.0/role' /etc/rc.local
+    echo "主机模式将在开机后的45秒后启用"
+    touch "$HOST_MODE_FLAG"
+  else
+    echo "未启用主机模式"
+  fi
+  touch "$CONFIG_FILE"
+fi
+
+# 检查 swap 分区是否存在
+if swapon --show | grep -q /swapfile; then
+    echo "检测到 swap 分区已经存在，是否删除它？（y/n）"
+    read answer
+    if [ "$answer" != "${answer#[Yy]}" ]; then
+        sudo swapoff /swapfile
+        sudo rm -f /swapfile
+        sudo sed -i '/\/swapfile/d' /etc/fstab
+    else
+        echo "Aborting!"
+        exit 1
+    fi
+fi
+
+if grep -q btrfs /etc/fstab; then
+    # 循环读取交换分区大小，直到输入有效的数字
+    while true; do
+        echo -n "设置 btrfs 文件系统的 swap 交换分区大小（单位：MB）："
+        read swap_size
+        
+        # 检查输入是否包含删除字符
+        if [[ "$swap_size" =~ \^H ]]; then
+            echo "错误：输入包含删除字符，请重新输入" >&2
+            continue
+        fi
+        
+        # 检查输入是否为数字
+        re='^[0-9]+$'
+        if ! [[ $swap_size =~ $re ]] ; then
+            echo "错误：交换分区大小必须是一个数字" >&2
+            continue
+        fi
+        
+        break
+    done
+    
+    # 设置 swap 分区
+    sudo truncate -s 0 /swapfile &&
+    sudo chattr +C /swapfile &&
+    sudo btrfs property set /swapfile compression none &&
+    dd if=/dev/zero of=/swapfile bs=1M count="$swap_size" &&
+    sleep 2 &&
+    chmod 600 /swapfile &&
+    mkswap /swapfile &&
+    swapon /swapfile &&
+    echo -e "LABEL=arch64 / btrfs defaults,noatime,compress=zstd:15,commit=30 0 0\n/swapfile swap swap defaults 0 0" >> /etc/fstab
+else
+    # 设置普通文件系统的 swap 分区
+    echo -n "设置普通文件系统的 swap 交换分区大小（单位随意，比如0.5G/200M）："
+    read swap_size
+    fallocate -l "$swap_size" /swapfile &&
+    chmod 600 /swapfile &&
+    mkswap /swapfile &&
+    swapon /swapfile &&
+    echo -e "\n/swapfile swap swap defaults 0 0" >> /etc/fstab
+fi
+# 将 swap 分区添加到 /etc/fstab
+if ! grep -qs '/swapfile' /etc/fstab; then
+  echo "将 swap 分区添加到 /etc/fstab"
+  if grep -q btrfs /etc/fstab; then
+    echo -e "/swapfile swap swap defaults 0 0" >> /etc/fstab
+  else
+    echo -e "\n/swapfile swap swap defaults 0 0" >> /etc/fstab
+  fi
+else
+  echo "已存在 swap 分区的项在 /etc/fstab 中，将不再执行添加命令"
+fi
+
+# 更改软件源为阿里源并更新必要的软件包
+read -t 5 -n 1 -p "是否确认更改软件源为阿里源并更新必要的软件包？（5s后自动确认,或输入N停止）："
+echo ""
+if [[ $REPLY == "" || $REPLY == "y" ]]; then
+  echo "更改软件源为阿里源"
+  echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
+  echo "deb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list
+  echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+  echo "deb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+  echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+  echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+  echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+  echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+  apt update && sleep 1
+  apt upgrade -y && sleep 2
+  read -t 5 -n 1 -e -p "是否确认推荐软件包？zip、byobu、cron、btrfs-progs等（默认为y，输入n取消）：" confirm_install
+  if [[ -z $confirm_install ]]; then
+    confirm_install="y"
+  fi
+  if [[ $confirm_install == "y" ]]; then
+    echo "安装zip、byobu、cron、btrfs-progs等软件包"
+    apt-get install zip byobu cron btrfs-progs && sleep 6
+    byobu-enable
+  else
+    echo "操作已取消"
+  fi
+  # 提示用户系统需要重启并清理垃圾和压缩系统
+  read -t 10 -n 1 -p "系统需要重启以确保稳定性，10秒后系统将在清理垃圾和压缩系统之后重启，按任意键取消操作：" prompt
+  echo ""
+  if [[ -z $prompt ]]; then
+    echo "正在清理垃圾..."
+    eval "$clean_commands" && sleep 2
+    if [[ $(grep -c btrfs /proc/mounts) -gt 0 ]]; then
+      echo "正在压缩系统..."
+      btrfs filesystem defragment -r -v -czstd / && sleep 6
+    else
+      echo "系统文件不是btrfs，取消执行压缩系统命令"
+    fi
+    echo "正在重启..."
+    echo "如需执行脚本，可以在终端输入脚本名，如：1 "
+    sleep 1
+    /sbin/reboot
+  else
+    echo "已取消"
+  fi
+fi
