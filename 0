@@ -159,6 +159,8 @@ if [[ $REPLY == "" || $REPLY == "y" ]]; then
     echo "正在重启..."
     echo "如需执行脚本，可以在终端输入脚本名，如：1 "
     sleep 1
+    sudo rm /root/0
+    sleep 1
     /sbin/reboot
   else
     echo "已取消"
