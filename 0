@@ -34,6 +34,8 @@ mkdir -p "$CONFIG_DIR"
 # 如果配置文件存在则不再提示用户是否启用主机模式
 if [[ -f "$CONFIG_FILE" ]]; then
   echo "如需开机启用主机模式，请执行sudo sed -i '/exit 0/i\sleep 45\n echo host > /sys/kernel/debug/usb/ci_hdrc.0/role' /etc/rc.local"
+  echo 255 > /sys/class/leds/green\:internet/trigger #绿灯
+  echo "脚本在执行更新时，绿色led会长亮"
 else
   # 提示用户是否启用主机模式
   read -t 5 -p "是否需要启用主机模式？按回车键确认启用，否则等待5秒后将不启用。（y/n）：" confirm
@@ -139,6 +141,7 @@ if [[ $REPLY == "" || $REPLY == "y" ]]; then
     echo "安装zip、byobu、cron、btrfs-progs等软件包"
     apt-get install zip byobu cron btrfs-progs -y && sleep 6
     byobu-enable
+    echo timer > /sys/class/leds/green\:internet/trigger
   else
     echo "操作已取消"
   fi
