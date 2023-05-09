@@ -129,7 +129,8 @@ if [[ $REPLY == "" || $REPLY == "y" ]]; then
   echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
   echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
   echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
-  echo 255 > /sys/class/leds/green\:internet/trigger && sleep 1
+  echo none > /sys/class/leds/green:internet/trigger && sleep 1
+  echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
   apt update && sleep 1
   apt upgrade -y && sleep 2
   read -t 5 -n 1 -e -p "是否确认推荐软件包？zip、byobu、cron、btrfs-progs等（默认为y，输入n取消）：" confirm_install
