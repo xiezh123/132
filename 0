@@ -34,7 +34,6 @@ mkdir -p "$CONFIG_DIR"
 # 如果配置文件存在则不再提示用户是否启用主机模式
 if [[ -f "$CONFIG_FILE" ]]; then
   echo "如需开机启用主机模式，请执行sudo sed -i '/exit 0/i\sleep 45\n echo host > /sys/kernel/debug/usb/ci_hdrc.0/role' /etc/rc.local"
-  echo 255 > /sys/class/leds/green\:internet/trigger #绿灯
   echo "脚本在执行更新时，绿色led会长亮"
 else
   # 提示用户是否启用主机模式
@@ -131,6 +130,7 @@ if [[ $REPLY == "" || $REPLY == "y" ]]; then
   echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
   echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
   echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+  echo 255 > /sys/class/leds/green\:internet/trigger && sleep 1
   apt update && sleep 1
   apt upgrade -y && sleep 2
   read -t 5 -n 1 -e -p "是否确认推荐软件包？zip、byobu、cron、btrfs-progs等（默认为y，输入n取消）：" confirm_install
