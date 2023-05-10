@@ -129,7 +129,7 @@ if [ "$option" == "1" ]; then
     fi
   elif [ "$install_option" == "c" ]; then
     echo "安装1Panel面板"
-    curl -fsSL https://onepanel.fit/install.sh | bash
+    curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh -o quick_start.sh && bash quick_start.sh
   elif [ "$install_option" == "d" ]; then
     echo "安装宝塔开心版，安装完成后终端执行<bt>自行更改"
     wget -O install.sh http://download.bt.cn/install/install-ubuntu_6.0.sh && sudo bash install.sh
