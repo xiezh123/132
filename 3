@@ -10,13 +10,49 @@ if [[ $choice =~ ^[Nn]$ ]]; then
   exit
 fi
 
+# 提示用户是否要格式化内存卡
+read -p "您是否需要格式化内存卡？(y/n)" format_choice
+
+if [[ $format_choice =~ ^[Yy]$ ]]; then
+  # 提示用户选择内存卡设备
+  echo "请选择您的内存卡设备："
+  read -p "$(fdisk -l | grep -o '/dev/sd.*' | sed 's/.$//' | nl)" sd_device_index
+
+  # 获取所选设备的路径
+  sd_device=$(fdisk -l | grep -o '/dev/sd.*' | sed 's/.$//' | sed -n "${sd_device_index}p")
+
+  # 提示用户修复设备
+  read -p "是否需要修复内存卡设备？(y/n) " repair
+  if [[ "$repair" == "y" ]]; then
+    sudo fsck -y "$sd_device"
+  fi
+
+  # 提示用户格式化设备
+  echo "请选择文件系统类型："
+  select fs_type in "FAT32" "ext4" "NTFS" "btrfs"; do
+    case $fs_type in
+      FAT32 ) sudo mkfs.fat -F32 "$sd_device"; break;;
+      ext4 ) sudo mkfs.ext4 "$sd_device"; break;;
+      NTFS ) sudo mkfs.ntfs "$sd_device"; break;;
+      btrfs ) sudo mkfs.btrfs "$sd_device"; break;;
+      * ) echo "无效选项，请重新选择。";;
+    esac
+  done
+fi
+
+# 挂载设备
+echo "正在以读写模式挂载设备...如果执行失败，可以尝试执行sudo mount -o remount,rw /dev/sda1 /mnt"
+sleep 2
+sudo mount -o remount,rw "$sd_device" /mnt/sdcard
+echo "设备已成功挂载。"
+
 # 获取用户输入的目录
 echo -n "请输入想要复制到的目录路径，比如/mnt: "
 read target_directory
 
 # 停止 Docker 服务
 echo "正在停止 Docker 服务..."
-sudo service docker stop
+sudo systemctl stop docker
 echo "Docker 服务已停止。"
 
 # 取消 Docker 开机自启服务
@@ -24,12 +60,6 @@ echo "正在取消 Docker 开机自启服务..."
 sleep 2
 sudo systemctl disable docker
 echo "已取消 Docker 开机自启服务。"
-
-# 挂载目标磁盘
-echo "正在挂载目标磁盘..."
-sleep 2
-sudo mount /dev/sda1 /mnt
-echo "目标磁盘已挂载。"
 
 # 复制 Docker 数据目录到目标目录
 echo "正在复制 Docker 数据目录到目标目录..."
@@ -51,7 +81,7 @@ echo "软链接已成功创建。"
 # 启动 Docker 服务
 echo "正在启动 Docker 服务..."
 sleep 3
-sudo service docker start
+sudo systemctl start docker
 echo "Docker 服务已成功启动。"
 
 # 等待 Docker 启动
