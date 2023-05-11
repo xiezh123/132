@@ -11,8 +11,17 @@ if [[ $choice =~ ^[Nn]$ ]]; then
 fi
 
 # 获取用户输入的目录
-echo -n "请输入想要复制到的目录路径，比如/mnt: "
-read target_directory
+while true; do
+  echo -n "请输入想要复制到的目录路径，比如/mnt: "
+  read target_directory
+
+  # 检查输入的目录是否存在
+  if [ ! -d "$target_directory" ]; then
+    echo "输入的目录路径不存在，请重新输入。"
+  else
+    break
+  fi
+done
 
 # 停止 Docker 服务
 echo "正在停止 Docker 服务..."
