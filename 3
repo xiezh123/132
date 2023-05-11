@@ -10,6 +10,30 @@ if [[ $choice =~ ^[Nn]$ ]]; then
   exit
 fi
 
+read -p "是否要格式化硬盘？(y/n): " format_choice
+
+# 如果用户选择 "n"，跳过格式化步骤
+if [[ $format_choice =~ ^[Nn]$ ]]; then
+  echo "跳过格式化硬盘步骤。"
+else
+  # 显示硬盘列表
+  echo "正在获取硬盘列表..."
+  sudo fdisk -l
+  echo
+  # 选择硬盘
+  read -p "请输入要格式化的硬盘路径，例如 /dev/sda1: " disk_path
+  echo "您选择的硬盘为：$disk_path"
+  # 确认是否要格式化成 btrfs 文件系统
+  read -p "是否要格式化为 btrfs 文件系统？(y/n): " btrfs_choice
+  if [[ $btrfs_choice =~ ^[Yy]$ ]]; then
+    echo "正在格式化硬盘，请耐心等待..."
+    sudo mkfs.btrfs "$disk_path"
+    echo "硬盘格式化完成，请手动执行mount /dev/sda1 /mnt，sudo mount -o remount,rw /dev/sda1 /mnt，参数请根据实际情况更改。"
+  else
+    echo "跳过格式化为 btrfs 文件系统步骤。"
+  fi
+fi
+
 # 获取用户输入的目录
 while true; do
   echo -n "请输入想要复制到的目录路径，比如/mnt: "
