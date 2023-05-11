@@ -61,12 +61,13 @@ echo "已取消 Docker 开机自启服务。"
 # 挂载目标磁盘
 echo "正在挂载目标磁盘..."
 sleep 2
-sudo mount /dev/sda1 /mnt
+sudo mount /dev/sda1 /mnt && sleep 2
+sudo mount -o remount,rw /dev/sda1 /mnt && sleep 3
 echo "目标磁盘已挂载。"
 
 # 复制 Docker 数据目录到目标目录
 echo "正在复制 Docker 数据目录到目标目录..."
-sleep 5
+sleep 2
 sudo rsync -a --progress /var/lib/docker/ "$target_directory/docker"
 echo "Docker 数据目录已成功复制到目标目录。"
 
