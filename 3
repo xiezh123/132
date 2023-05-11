@@ -5,10 +5,10 @@ echo "在执行脚本前，请确保您已经将内存卡插入到系统中。"
 
 # 显示可用的设备列表并让用户选择设备
 echo "请选择您的内存卡设备："
-select sd_device in $(lsblk -d -o name,type,tran | grep 'disk\|sd\|mmc' | grep -vE 'part|rom|loop' | awk '{print $1}' | sed 's/.$//' | nl); do
+select sd_device in $(sudo fdisk -l | grep -i sd | awk '{print $1}' | sed 's/.$//' | uniq | nl); do
   if [[ ! -z "$sd_device" ]]; then
     # 获取所选设备的路径
-    sd_device=$(lsblk -d -o name,type,tran | grep 'disk\|sd\|mmc' | grep -vE 'part|rom|loop' | awk '{print $1}' | sed 's/.$//' | sed -n "${sd_device}p")
+    sd_device=$(sudo fdisk -l | grep -i sd | awk '{print $1}' | sed 's/.$//' | uniq | sed -n "${sd_device}p")
 
     # 提示用户是否需要格式化设备
     read -p "是否需要格式化内存卡设备？(按回车键继续，按任意键跳过) " format_device
@@ -58,3 +58,5 @@ select sd_device in $(lsblk -d -o name,type,tran | grep 'disk\|sd\|mmc' | grep -
     echo "正在复制 Docker 数据目录到目标目录...这可能需要几分钟时间，请耐心等待。"
     sudo rsync -a --progress /var/lib/docker/ "$target_directory"
     echo "Docker 数据目录已成功复制到目标目录。"
+  fi
+done
