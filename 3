@@ -1,62 +1,62 @@
 #!/bin/bash
 
-echo "欢迎使用 Docker 数据目录迁移脚本！"
-echo "在执行脚本前，请确保您已经将内存卡插入到系统中。"
+# 提示用户确认操作
+echo "在执行脚本前，最好将内存卡格式化成和系统一样的文件格式，然后挂载"
+read -p "是否继续执行？（y/n）" choice
 
-# 显示可用的设备列表并让用户选择设备
-echo "请选择您的内存卡设备："
-select sd_device in $(sudo fdisk -l | grep -i sd | awk '{print $1}' | sed 's/.$//' | uniq | nl); do
-  if [[ ! -z "$sd_device" ]]; then
-    # 获取所选设备的路径
-    sd_device=$(sudo fdisk -l | grep -i sd | awk '{print $1}' | sed 's/.$//' | uniq | sed -n "${sd_device}p")
+# 如果用户选择 "n"，退出脚本
+if [[ $choice =~ ^[Nn]$ ]]; then
+  echo "脚本已退出。"
+  exit
+fi
 
-    # 提示用户是否需要格式化设备
-    read -p "是否需要格式化内存卡设备？(按回车键继续，按任意键跳过) " format_device
-    if [[ -z "$format_device" ]]; then
-      # 提示用户选择文件系统类型
-      echo "请选择文件系统类型："
-      select fs_type in "FAT32" "ext4" "NTFS" "btrfs"; do
-        case $fs_type in
-          FAT32 ) sudo mkfs.fat -F32 "$sd_device"; break;;
-          ext4 ) sudo mkfs.ext4 "$sd_device"; break;;
-          NTFS ) sudo mkfs.ntfs "$sd_device"; break;;
-          btrfs ) sudo mkfs.btrfs "$sd_device"; break;;
-          * ) echo "无效选项，请重新选择。";;
-        esac
-      done
+# 获取用户输入的目录
+echo -n "请输入想要复制到的目录路径，比如/mnt: "
+read target_directory
 
-      # 提示用户修复设备
-      read -p "是否需要修复内存卡设备？(按回车键继续，按任意键跳过) " repair
-      if [[ -z "$repair" ]]; then
-        sudo fsck -y "$sd_device"
-      fi
-    fi
+# 停止 Docker 服务
+echo "正在停止 Docker 服务..."
+sudo service docker stop
+echo "Docker 服务已停止。"
 
-    # 挂载设备
-    echo -n "请输入想要挂载的目录路径，比如/mnt: "
-    read mount_directory
-    sudo mkdir -p "$mount_directory"
-    sudo mount -o remount,rw "$sd_device" "$mount_directory"
-    echo "设备已成功挂载到 $mount_directory。"
+# 取消 Docker 开机自启服务
+echo "正在取消 Docker 开机自启服务..."
+sleep 2
+sudo systemctl disable docker
+echo "已取消 Docker 开机自启服务。"
 
-    # 获取用户输入的目录
-    echo -n "请输入想要复制到的目录路径，比如/mnt/docker: "
-    read target_directory
+# 挂载目标磁盘
+echo "正在挂载目标磁盘..."
+sleep 2
+sudo mount /dev/sda1 /mnt
+echo "目标磁盘已挂载。"
 
-    # 停止 Docker 服务
-    echo "正在停止 Docker 服务..."
-    sudo systemctl stop docker
-    echo "Docker 服务已停止。"
+# 复制 Docker 数据目录到目标目录
+echo "正在复制 Docker 数据目录到目标目录..."
+sleep 5
+sudo rsync -a --progress /var/lib/docker/ "$target_directory/docker"
+echo "Docker 数据目录已成功复制到目标目录。"
 
-    # 取消 Docker 开机自启服务
-    echo "正在取消 Docker 开机自启服务..."
-    sleep 2
-    sudo systemctl disable docker
-    echo "已取消 Docker 开机自启服务。"
+# 删除原有 Docker 数据目录
+echo "正在删除原有 Docker 数据目录..."
+sudo rm -rf /var/lib/docker
+echo "原有 Docker 数据目录已成功删除。"
 
-    # 复制 Docker 数据目录到目标目录
-    echo "正在复制 Docker 数据目录到目标目录...这可能需要几分钟时间，请耐心等待。"
-    sudo rsync -a --progress /var/lib/docker/ "$target_directory"
-    echo "Docker 数据目录已成功复制到目标目录。"
-  fi
-done
+# 创建软链接
+echo "正在创建软链接..."
+sleep 1
+sudo ln -s "$target_directory/docker" /var/lib/
+echo "软链接已成功创建。"
+
+# 启动 Docker 服务
+echo "正在启动 Docker 服务..."
+sleep 3
+sudo service docker start
+echo "Docker 服务已成功启动。"
+
+# 等待 Docker 启动
+echo "正在检查 Docker 服务状态..."
+sleep 3
+sudo systemctl status docker
+echo "请查看Docker服务是否正常。"
+sudo rm /root/3
