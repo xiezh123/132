@@ -143,7 +143,6 @@ if [[ $REPLY == "" || $REPLY == "y" ]]; then
     echo "安装zip、byobu、cron、btrfs-progs等软件包"
     apt-get install zip byobu cron btrfs-progs rsync preload -y && sleep 6
     byobu-enable
-    echo timer > /sys/class/leds/green\:internet/trigger
   else
     echo "操作已取消"
   fi
@@ -163,7 +162,8 @@ if [[ $REPLY == "" || $REPLY == "y" ]]; then
     fi
     echo "正在重启..."
     echo "如需执行脚本，可以在终端输入脚本名，如：1 "
-    sleep 1
+    eval "$clean_commands" && sleep 1
+    echo timer > /sys/class/leds/green\:internet/trigger && sleep 1
     sudo rm /root/0
     sleep 1
     /sbin/reboot
