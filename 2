@@ -1,0 +1,56 @@
+
+# 更改软件源为阿里源并更新必要的软件包
+read -t 5 -n 1 -p "是否确认更改软件源为阿里源并更新必要的软件包？（5s后自动确认,或输入N停止）："
+echo ""
+if [[ $REPLY == "" || $REPLY == "y" ]]; then
+  echo "更改软件源为阿里源"
+  echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
+  echo "deb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list
+  echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+  echo "deb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+  echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+  echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+  echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+  echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+  echo "deb http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
+  echo "deb-src http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
+  echo none > /sys/class/leds/green:internet/trigger && sleep 1
+  echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
+  apt update && sleep 1
+  apt upgrade -y && sleep 2
+  read -t 5 -n 1 -e -p "是否确认推荐软件包？zip、byobu、cron、btrfs-progs等（默认为y，输入n取消）：" confirm_install
+  if [[ -z $confirm_install ]]; then
+    confirm_install="y"
+  fi
+  if [[ $confirm_install == "y" ]]; then
+    echo "安装zip、byobu、cron、btrfs-progs等软件包"
+    apt-get install zip byobu cron btrfs-progs rsync preload -y && sleep 6
+    byobu-enable
+  else
+    echo "操作已取消"
+  fi
+  # 提示用户系统需要重启并清理垃圾和压缩系统
+  read -t 10 -n 1 -p "系统需要重启以确保稳定性，10秒后系统将在清理垃圾和压缩系统之后重启，按任意键取消操作：" prompt
+  echo ""
+  if [[ -z $prompt ]]; then
+    echo "正在清理垃圾..."
+    byobu-enable
+    eval "$clean_commands" && sleep 2
+    curl -sSL https://github.com/xiezh123/132/raw/main/1 -o /usr/local/bin/1 && sudo chmod +x /usr/local/bin/1
+    if [[ $(grep -c btrfs /proc/mounts) -gt 0 ]]; then
+      echo "正在压缩系统..."
+      btrfs filesystem defragment -r -v -czstd / && sleep 6
+    else
+      echo "系统文件不是btrfs，取消执行压缩系统命令"
+    fi
+    echo "正在重启..."
+    echo "如需执行脚本，可以在终端输入脚本名，如：1 "
+    eval "$clean_commands" && sleep 1
+    echo timer > /sys/class/leds/green\:internet/trigger && sleep 1
+    sudo rm /root/0
+    sleep 1
+    /sbin/reboot
+  else
+    echo "已取消"
+  fi
+fi
