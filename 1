@@ -70,8 +70,9 @@ if [ "$option" == "1" ]; then
 
     echo "启用 Docker 服务..."
     sudo systemctl enable docker
-    echo "启动 Docker 服务..."
-    sudo systemctl start docker
+    echo "请查看Docker 守护进程的状态信，出现Active: active (running)即可"
+    sudo systemctl start docker && sleep 3
+    systemctl status docker
   elif [ "$install_option" == "b" ]; then
     echo "请选择您要安装的版本："
     echo "1. 安装 Debian 版本"
