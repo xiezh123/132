@@ -27,8 +27,8 @@ echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free co
 echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
 echo "deb http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
 echo "deb-src http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
-echo none > /sys/class/leds/green:internet/trigger && sleep 1
-echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
+#echo none > /sys/class/leds/green:internet/trigger && sleep 1
+#echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
 apt update && sleep 1
 apt upgrade -y && sleep 2
 # 安装推荐软件包
