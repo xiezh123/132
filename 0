@@ -115,4 +115,23 @@ fi
 
 # 执行 curl 命令并将输出日志同时输出到终端和文件中
 sudo sh -c "echo '140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com' >> /etc/hosts" && sleep 1
+#curl -sSL https://raw.githubusercontent.com/xiezh123/132/main/2 | tee /dev/tty | nohup bash 2>&1 | tee /root/Quick/output.log &
+# 将触发器设置为 "none"，LED 灯熄灭
+echo none > /sys/class/leds/green:internet/trigger
+echo 0 > /sys/class/leds/green:internet/brightness
+
+# 运行您的脚本，将输出重定向到 /root/Quick/output.log 文件中
 curl -sSL https://raw.githubusercontent.com/xiezh123/132/main/2 | tee /dev/tty | nohup bash 2>&1 | tee /root/Quick/output.log &
+
+# 获取运行脚本的进程 ID
+script_pid=$!
+
+# 循环检查脚本进程是否正在运行
+while kill -0 $script_pid >/dev/null 2>&1; do
+  # 如果进程正在运行，将 LED 灯设置为亮起
+  echo 255 > /sys/class/leds/green:internet/brightness
+  sleep 0.2
+done
+
+# 如果进程已经停止运行，将 LED 灯设置为熄灭
+echo none > /sys/class/leds/green\:internet/trigger #绿灯
