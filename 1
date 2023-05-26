@@ -221,7 +221,7 @@ elif [ "$option" == "2" ]; then
 
   # 显示选择菜单
   echo "请选择 CPU 频率："
-  echo "1. 600 MHz（有点问题）"
+  echo "1. 动态调整"
   echo "2. 800 MHz"
   echo "3. 1000 MHz"
   echo "4. 1.20 GHz"
@@ -236,7 +236,7 @@ elif [ "$option" == "2" ]; then
 
   # 根据用户输入修改 CPU 频率
   case $choice in
-    1) sudo cpufreq-set -c 0-f 600000 ;;
+    1) sudo cpufreq-set -g ondemand ;;
     2) sudo cpufreq-set -c 0 -f 800000 ;;
     3) sudo cpufreq-set -c 0 -f 1000000 ;;
     4) sudo cpufreq-set -c 0 -f 1200000 ;;
