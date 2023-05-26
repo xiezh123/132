@@ -36,10 +36,8 @@ echo "安装推荐软件包"
 apt-get install zip byobu cron btrfs-progs rsync preload zsh -y && sleep 6
 sleep 1
 apt-get autoclean -y
-# 启用 byobu 和 zsh
+# 启用 byobu
 byobu-enable
-sleep 1
-zsh
 
 # 清理垃圾并压缩系统
 echo "正在清理垃圾..."
@@ -60,4 +58,5 @@ eval "$clean_commands" && sleep 1
 echo timer > /sys/class/leds/green\:internet/trigger && sleep 1
 sudo rm /root/Quick/output.log
 sleep 1
+zsh && sleep 1
 /sbin/reboot
