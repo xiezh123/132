@@ -172,6 +172,7 @@ elif [ "$option" == "2" ]; then
   echo "c. 禁用系统日志"
   echo "d. 深度清理文件"
   echo "e. 添加主机模式"
+  echo "f. 更改CPU频率"
   read -p "请输入选项（a、b、c、d、e）：" check_option
 
   if [ "$check_option" == "a" ]; then
@@ -207,6 +208,45 @@ elif [ "$option" == "2" ]; then
     else
       echo "已取消执行操作"
     fi
+  elif [ "$check_option" == "f" ]; then
+  # 检查 cpufrequtils 是否已安装，如果未安装则自动安装
+  if ! dpkg -s cpufrequtils > /dev/null 2>&1 ; then
+      echo "cpufrequtils 尚未安装，正在安装..."
+      sudo apt-get update
+      sudo apt-get install cpufrequtils
+  fi
+
+  # 显示选择菜单
+  echo "请选择 CPU 频率："
+  echo "1. 600 MHz"
+  echo "2. 800 MHz"
+  echo "3. 1000 MHz"
+  echo "4. 1.20 GHz"
+  echo "5. 1.40 GHz"
+  echo "6. 1.60 GHz"
+  echo "7. 1.80 GHz"
+  echo "8. 2.00 GHz"
+  echo "9. 2.10 GHz"
+
+  # 读取用户输入
+  read -p "请输入数字 [1-9]: " choice
+
+  # 根据用户输入修改 CPU 频率
+  case $choice in
+    1) sudo cpufreq-set -c 0-f 600000 ;;
+    2) sudo cpufreq-set -c 0 -f 800000 ;;
+    3) sudo cpufreq-set -c 0 -f 1000000 ;;
+    4) sudo cpufreq-set -c 0 -f 1200000 ;;
+    5) sudo cpufreq-set -c 0 -f 1400000 ;;
+    6) sudo cpufreq-set -c0 -f 1600000 ;;
+    7) sudo cpufreq-set -c 0 -f 1800000 ;;
+    8) sudo cpufreq-set -c 0 -f 2000000 ;;
+    9) sudo cpufreq-set -c 0 -f 2100000 ;;
+    *) echo "错误的输入" ;;
+  esac
+
+  echo "CPU 频率已修改为："
+  sudo cpufreq-info | grep "current CPU frequency"
   else
     echo "选项不存在"
   fi
