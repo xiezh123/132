@@ -70,7 +70,7 @@ if [ "$option" == "1" ]; then
 
     echo "启用 Docker 服务..."
     sudo systemctl enable docker
-    echo -e "\e[33m请查看 Docker 守护进程的状态信息，出现 \e[32mActive: active (running)\e[33m 即可\e[0m"
+    echo -e "\e[33m请查看 Docker 守护进程的状态信息，出现 \e[32mActive: active (running)\e[33m 即可，安装出错请尝试到：脚本>2>a，修复软件包\e[0m"
     sudo systemctl start docker && sleep 3
     systemctl status docker
   elif [ "$install_option" == "b" ]; then
