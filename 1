@@ -62,7 +62,7 @@ if [ "$option" == "1" ]; then
     elif [ "$option" == "5" ]; then
       echo "确认删除 Docker 及其相关文件和设置（如需恢复请更新软件包，如安装docker—ce）"
       sudo systemctl stop docker && sudo apt-get purge docker-ce docker-ce-cli containerd.io && sudo rm -rf /var/lib/docker /etc/docker && sudo groupdel docker && sudo userdel -r docker && sudo rm -rf /etc/systemd/system/docker.service.d /etc/systemd/system/containerd.service.d /lib/systemd/system/docker.service /lib/systemd/system/containerd.service
-    echo "Docker 已被完全删除"
+    echo "Docker 已被删除"
     else
       echo "无效的选项"
       exit 1
@@ -218,7 +218,7 @@ elif [ "$option" == "2" ]; then
 
   # 显示选择菜单
   echo "请选择 CPU 频率："
-  echo "1. 600 MHz"
+  echo "1. 600 MHz（有点问题）"
   echo "2. 800 MHz"
   echo "3. 1000 MHz"
   echo "4. 1.20 GHz"
