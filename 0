@@ -19,9 +19,9 @@ mkdir -p "$CONFIG_DIR"
 echo -e "\033[33m执行更新命令时，脚本会改为后台运行，此时绿色led常亮，更新软件包完成后会执行压缩然后重启。\033[0m" && sleep 1
 echo -e "\033[31m如果连接断开，可以再次连接查看/root/Quick的output.log文件是否在更新，或者等待时间太长，就拔了[受虐滑稽][受虐滑稽][受虐滑稽]\033[0m"
 
-read -p "是否继续执行脚本？按回车键继续执行，按空格键取消执行：" choice
+read -p "输入 'z' 执行脚本：" choice
 
-if [[ "$choice" =~ ^$ ]]; then
+if [[ "$choice" == "z" ]]; then
   echo "继续执行脚本..."
 else
   echo "已取消执行脚本"
