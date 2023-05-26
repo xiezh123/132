@@ -28,14 +28,14 @@ read -p "请输入选项（1、2、3、3a、3b、3c、3d）：" option
 if [ "$option" == "1" ]; then
   echo "请选择要执行的操作："
   echo "a. 安装Docker"
-  echo "b. 安装青龙面板"
-  echo "c. 安装1Panel面板"
-  echo "d. 安装宝塔开心版"
+  echo "b. 安装ql"
+  echo "c. 安装1Panel"
+  echo "d. 安装bt"
   echo "e. 安装Aria2"
-  echo "f. 安装Alist网盘"
-  echo "g. 安装CasaOS个人云"
+  echo "f. 安装Alist"
+  echo "g. 安装CasaOS"
   echo "h. 安装qiandao"
-  echo "i. 安装网易云音乐解灰代理服务"
+  echo "i. 安装UnblockNeteaseMusic"
   read -p "请输入字母选项：" install_option
 
   if [ "$install_option" == "a" ]; then
@@ -70,7 +70,7 @@ if [ "$option" == "1" ]; then
 
     echo "启用 Docker 服务..."
     sudo systemctl enable docker
-    echo "请查看Docker 守护进程的状态信，出现Active: active (running)即可"
+    echo -e "\e[33m请查看 Docker 守护进程的状态信息，出现 \e[32mActive: active (running)\e[33m 即可\e[0m"
     sudo systemctl start docker && sleep 3
     systemctl status docker
   elif [ "$install_option" == "b" ]; then
@@ -123,7 +123,9 @@ if [ "$option" == "1" ]; then
         --restart always \
         whyour/qinglong:2.10.13
     elif [ "$panel_option" == "4" ]; then
-        echo "进入容器，按住 Ctrl 和 PQ 退出容器"
+        echo "进入容器，按住 Ctrl 和 PQ 退出容器，执行 ql -l check 修复面板"
+        echo "2.10.13 稳定版执行 docker exec -it qinglong bash -c "$(curl -fsSL https://ghproxy.com/https://raw.githubusercontent.com/FlechazoPh/QLDependency/main/Shell/QLOneKeyDependency.sh | sh)"
+ 安装依赖，如果查看不全，自行打开脚本查看"
         docker exec -it qinglong /bin/bash
     else
         echo "无效的选项，退出脚本"
@@ -173,6 +175,7 @@ elif [ "$option" == "2" ]; then
   echo "d. 深度清理文件"
   echo "e. 添加主机模式"
   echo "f. 更改CPU频率"
+  echo "g. 查看emmc"
   read -p "请输入选项（a、b、c、d、e）：" check_option
 
   if [ "$check_option" == "a" ]; then
@@ -247,22 +250,23 @@ elif [ "$option" == "2" ]; then
 
   echo "CPU 频率已修改为："
   sudo cpufreq-info | grep "current CPU frequency"
+  elif [ "$check_option" == "g" ]; then
+    cat /sys/class/mmc_host/mmc0/mmc0\:0001/life_time
   else
     echo "选项不存在"
   fi
 elif [[ "$option" == "3a" ]]; then
   # 显示 LED 控制菜单
-  echo "请选择 LED 控制选项："
-  echo "1. 关闭 LED"
-  echo "2. LED 互换"
+  echo "请选择 LED 控制选项：（回车关闭）"
+  echo "1. 保留WiFi"
+  echo "2. 蓝绿互换"
   read -r led_option
   
   # 处理 LED 控制选项
   case "$led_option" in
     1)
-      # 关闭 LED
+      # 关闭其他 LED
       echo 0 > /sys/class/leds/mmc0\:\:/brightness #红灯
-      echo none > /sys/class/leds/blue\:wifi/trigger #蓝灯
       echo none > /sys/class/leds/green\:internet/trigger #绿灯
       ;;
     2)
@@ -272,7 +276,7 @@ elif [[ "$option" == "3a" ]]; then
       ;;
     *)
       # 默认情况：关闭 LED
-      echo "无效的 LED 控制选项，将关闭 LED"
+      echo "关闭 LED"
       echo 0 > /sys/class/leds/mmc0\:\:/brightness #红灯
       echo none > /sys/class/leds/blue\:wifi/trigger #蓝灯
       echo none > /sys/class/leds/green\:internet/trigger #绿灯
@@ -294,6 +298,7 @@ elif [[ "$option" == "3c" ]]; then
   ip addr show
   ping -c 4 baidu.com
   ping -c 4 google.com
+  mmcli -m 0
 elif [[ "$option" == "3d" ]]; then 
   echo "查看系统状态"
   echo "系统详情：$(uname -a)"
