@@ -21,12 +21,12 @@ echo -e "\033[31m如果连接断开，可以再次连接查看/root/Quick的outp
 
 read -p "是否继续执行脚本？按回车键继续执行，按空格键取消执行：" choice
 
-if [[ "$choice" =~ ^[[:space:]]*$ ]]; then
+if [[ "$choice" =~ ^$ ]]; then
+  echo "继续执行脚本..."
+else
   echo "已取消执行脚本"
   exit 0
 fi
-
-echo "继续执行脚本..."
 
 # 如果配置文件存在则不再提示用户是否启用主机模式
 if [[ -f "$CONFIG_FILE" ]]; then
