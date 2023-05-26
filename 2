@@ -31,9 +31,10 @@ echo none > /sys/class/leds/green:internet/trigger && sleep 1
 echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
 apt update && sleep 1
 apt upgrade -y && sleep 2
-echo "安装zip、byobu、cron、btrfs-progs等软件包"
-apt-get install zip byobu cron btrfs-progs rsync preload -y && sleep 6
-byobu-enable
+echo "安装推荐软件包"
+apt-get install zip byobu cron btrfs-progs rsync preload zsh autoclean -y && sleep 6
+byobu-enable sleep 1
+zsh
 
 # 清理垃圾并压缩系统
 echo "正在清理垃圾..."
@@ -48,7 +49,7 @@ else
 fi
 
 # 重启系统
-echo "正在重启..."
+echo "重启以确保稳定性..."
 echo -e "\033[33;32m如需执行脚本，可以在终端输入：z\033[0m"
 eval "$clean_commands" && sleep 1
 echo timer > /sys/class/leds/green\:internet/trigger && sleep 1
