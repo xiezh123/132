@@ -102,7 +102,7 @@ else
 fi
 
 # 执行 curl 命令并将输出日志同时输出到终端和文件中
-echo "执行更新命令时，脚本会改为后台运行，此时绿色led常亮，更新软件包完成后会执行压缩然后重启。如果连接断开，可以查看/root/Quick的output.log文件" && sleep 1
-echo "如果等待时间太长，就拔了"
+echo "执行更新命令时，脚本会改为后台运行，此时绿色led常亮，更新软件包完成后会执行压缩然后重启。" && sleep 1
+echo -e "\033[31m如果连接断开，可以再次连接查看/root/Quick的output.log文件是否在更新，或者等待时间太长，就拔了[受虐滑稽][受虐滑稽][受虐滑稽]\033[0m" && sleep 2
 sudo sh -c "echo '140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com' >> /etc/hosts" && sleep 1
 curl -sSL https://raw.githubusercontent.com/xiezh123/132/main/2 | tee /dev/tty | nohup bash 2>&1 | tee /root/Quick/output.log &
