@@ -176,6 +176,7 @@ elif [ "$option" == "2" ]; then
   echo "e. 添加主机模式"
   echo "f. 更改CPU频率"
   echo "g. 查看emmc"
+  echo "h. LED控制选项"
   read -p "请输入选项（a、b、c、d、e）：" check_option
 
   if [ "$check_option" == "a" ]; then
@@ -254,13 +255,15 @@ elif [ "$option" == "2" ]; then
   sudo cpufreq-info | grep "current CPU frequency"
   elif [ "$check_option" == "g" ]; then
     cat /sys/class/mmc_host/mmc0/mmc0\:0001/life_time
+  elif [ "$check_option" == "h" ]; then
+    bash -c "$(curl -L gitee.com/ojf6ii/led-control-script/raw/master/led.sh)"
   else
     echo "选项不存在"
   fi
 elif [[ "$option" == "3a" ]]; then
   # 显示 LED 控制菜单
   echo "请选择 LED 控制选项：（回车关闭）"
-  echo "1. 保留WiFi"
+  echo "1. 保留WiFi（默认情况）"
   echo "2. 蓝绿互换"
   read -r led_option
   
