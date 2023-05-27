@@ -1,6 +1,19 @@
 #!/bin/bash
 
-sudo sh -c "echo '140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com' >> /etc/hosts" && sleep 1
+# 要添加到 hosts 文件中的 IP 地址和域名
+ip_list="140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com"
+
+# 检查 hosts 文件是否已经包含要添加的 IP 地址
+if grep -q "$ip_list" /etc/hosts; then
+  echo "hosts 文件中已经包含要添加的 IP 地址。"
+else
+  # 将 IP 地址和域名添加到 hosts 文件中
+  if sudo sh -c "echo '$ip_list' >> /etc/hosts"; then
+    echo "IP 地址和域名已经成功添加到 hosts 文件中。"
+  else
+    echo "添加 IP 地址和域名到 hosts 文件失败。"
+  fi
+fi
 
 read -p "回车更新，z拉取脚本(y/z)" choice
 
