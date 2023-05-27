@@ -46,7 +46,6 @@ cat /etc/shells
 
 # 清理垃圾并压缩系统
 echo "正在清理垃圾..."
-byobu-enable
 eval "$clean_commands" && sleep 2
 curl -sSL https://github.com/xiezh123/132/raw/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z
 if [[ $(grep -c btrfs /proc/mounts) -gt 0 ]]; then
@@ -58,9 +57,9 @@ fi
 
 # 重启系统
 echo "重启以确保稳定性..."
-echo -e "\033[33;32m如需执行脚本，可以在终端输入：z\033[0m"
 eval "$clean_commands" && sleep 1
+echo -e "\033[33;32m如需执行脚本，可以在终端输入：z\033[0m"
 echo timer > /sys/class/leds/green\:internet/trigger && sleep 1
 sudo rm /root/Quick/output.log
 sleep 1
-#/sbin/reboot
+/sbin/reboot
