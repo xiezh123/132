@@ -1,10 +1,9 @@
 #!/bin/bash
 
-#!/bin/bash
-
 # 要添加到 hosts 文件中的 IP 地址和域名
 ip_list="140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com"
 
+mkdir -p "$CONFIG_DIR"
 CONFIG_DIR="/root/Quick"
 CONFIG_FILE="$CONFIG_DIR/鸡你太美"
 
