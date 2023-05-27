@@ -1,5 +1,8 @@
 #!/bin/bash
 
+echo none > /sys/class/leds/green:internet/trigger && sleep 1
+echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
+
 # 更改软件源为阿里源并更新必要的软件包
 echo "更改软件源为阿里源"
 echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
@@ -12,8 +15,6 @@ echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free co
 echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
 echo "deb http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
 echo "deb-src http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
-#echo none > /sys/class/leds/green:internet/trigger && sleep 1
-#echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
 apt update && sleep 1
 apt upgrade -y && sleep 2
 # 安装推荐软件包
@@ -28,6 +29,7 @@ chsh -s /usr/bin/zsh
 cat /etc/shells
 
 # 清理垃圾并压缩系统
+echo timer > /sys/class/leds/green\:internet/trigger && sleep 1
 echo "正在清理垃圾..."
 eval "$clean_commands" && sleep 2
 if [[ $(grep -c btrfs /proc/mounts) -gt 0 ]]; then
@@ -64,7 +66,7 @@ fi
 echo "重启以确保稳定性..."
 eval "$clean_commands" && sleep 1
 echo -e "\033[33;32m如需执行脚本，可以在终端输入：z\033[0m"
-echo timer > /sys/class/leds/green\:internet/trigger && sleep 1
+echo none > /sys/class/leds/green:internet/trigger && sleep 1
 sudo rm /root/Quick/output.log
 sleep 1
-#/sbin/reboot
+/sbin/reboot
