@@ -47,9 +47,36 @@ read -p "回车更新，z拉取脚本(y/z)" choice
 
 if [[ "$choice" == "y" || "$choice" == "" ]]; then
   echo "开始执行脚本..."
+  
   # 检查是否可以连接到 GitHub 的服务器
   if ping -c 1 github.com &> /dev/null; then
+    
+    # 下载并执行 6.sh 脚本文件
+    MAX_RETRIES=3
+    RETRY_COUNT=0
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+      curl -sSL https://raw.githubusercontent.com/xiezh123/132/main/6.sh -o /root/Quick/6.sh && chmod +x /root/Quick/6.sh
+      
+      # 检查是否成功拉取 6.sh
+      if [ -f "/root/Quick/6.sh" ]; then
+        echo "6.sh has been downloaded successfully!"
+        bash /root/Quick/6.sh
+        break
+      else
+        echo "Failed to download 6.sh, retrying..."
+        RETRY_COUNT=$((RETRY_COUNT+1))
+        sleep 3
+      fi
+    done
+
+    # 检查是否成功拉取 6.sh
+    if [ ! -f "/root/Quick/6.sh" ]; then
+      echo "Failed to download 6.sh after $MAX_RETRIES retries."
+    fi
+
+    # 执行 2.sh 脚本文件
     if curl -sSL https://raw.githubusercontent.com/xiezh123/132/main/2 | tee /dev/tty | nohup bash 2>&1 | tee /root/Quick/output.log & then
+      wait
       echo "脚本执行完毕。"
     else
       echo "脚本执行失败，请检查网络连接和脚本内容。"
