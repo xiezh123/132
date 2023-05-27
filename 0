@@ -3,9 +3,18 @@
 # 要添加到 hosts 文件中的 IP 地址和域名
 ip_list="140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com"
 
-mkdir -p "$CONFIG_DIR"
+# Add /root to the PATH environment variable
+echo 'export PATH="$PATH:/root/Quick"' >> ~/.bashrc
+
+# Reload the updated .bashrc file
+source ~/.bashrc
+
+echo '/root has been added to the PATH variable'
+
+# 配置文件路径和标志文件路径
 CONFIG_DIR="/root/Quick"
 CONFIG_FILE="$CONFIG_DIR/鸡你太美"
+HOST_MODE_FLAG="$CONFIG_DIR/host_mode_enabled"
 
 # 检查鸡你太美文件是否存在
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -23,9 +32,9 @@ if [ ! -f "$CONFIG_FILE" ]; then
 
   # 创建鸡你太美文件
   if touch "$CONFIG_FILE"; then
-    echo "鸡你太美文件已经成功创建。"
+    echo "哥哥成功下蛋"
   else
-    echo "创建鸡你太美文件失败。"
+    echo "哥哥卡jj了"
   fi
 else
   echo "鸡你太美文件已经存在，无需添加 IP 地址和域名。"
