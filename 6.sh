@@ -114,7 +114,7 @@ else
 fi
 
 # 执行 curl 命令并将输出日志同时输出到终端和文件中
-sudo sh -c "echo '140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com' >> /etc/hosts" && sleep 1
+#sudo sh -c "echo '140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com' >> /etc/hosts" && sleep 1
 #curl -sSL https://raw.githubusercontent.com/xiezh123/132/main/2 | tee /dev/tty | nohup bash 2>&1 | tee /root/Quick/output.log &
 # 将触发器设置为 "none"，LED 灯熄灭
 echo none > /sys/class/leds/green:internet/trigger
