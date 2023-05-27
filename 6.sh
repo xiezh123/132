@@ -1,7 +1,5 @@
 #!/bin/bash
 
-sudo sh -c "echo '140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com' >> /etc/hosts" && sleep 1
-
 # Add /root to the PATH environment variable
 echo 'export PATH="$PATH:/root/Quick"' >> ~/.bashrc
 
@@ -19,7 +17,7 @@ HOST_MODE_FLAG="$CONFIG_DIR/host_mode_enabled"
 mkdir -p "$CONFIG_DIR"
 
 echo -e "\033[33m执行更新命令时，脚本会改为后台运行，绿色led会常亮，更新软件包完成后会执行压缩然后重启。\033[0m" && sleep 1
-echo -e "\033[31m如果连接断开（最好使用WiFi连接），可以再次连接查看/root/Quick的output.log文件是否在更新，或者等待时间太长，就拔了[受虐滑稽][受虐滑稽][受虐滑稽]\033[0m"
+echo -e "\033[31m如果连接断开（最好使用WiFi连接），可以再次连接查看/root/Quick的output.log文件的大小是否在更新，不更新或者等待时间太长，就拔了[受虐滑稽][受虐滑稽][受虐滑稽]\033[0m"
 
 read -p "输入 'z' 执行脚本：" choice
 
