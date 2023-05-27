@@ -40,7 +40,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
     echo "哥哥卡jj了"
   fi
 else
-  echo "鸡你太美文件已经存在，无需添加 IP 地址和域名。"
+  echo -e "\033[33m脚本已经执行过了，再次执行可能会出现问题\033[0m"
 fi
 
 read -p "回车更新，z拉取脚本(y/z)" choice
