@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sudo sh -c "echo '140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com' >> /etc/hosts" && sleep 1
+
 # Add /root to the PATH environment variable
 echo 'export PATH="$PATH:/root/Quick"' >> ~/.bashrc
 
