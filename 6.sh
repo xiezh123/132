@@ -72,3 +72,4 @@ if ! grep -qs '/swapfile' /etc/fstab; then
 else
   echo "已存在 swap 分区的项在 /etc/fstab 中，将不再执行添加命令"
 fi
+rm /root/Quick/6.sh
