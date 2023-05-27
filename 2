@@ -15,6 +15,79 @@ echo > /var/log/mail.warn
 echo > /var/log/mail.err
 echo \"清理垃圾完成\""
 
+# 检查 swap 分区是否存在
+if swapon --show | grep -q /swapfile; then
+    while true; do
+        echo "检测到 swap 分区已经存在，是否删除它？（y/n）"
+        read answer
+        if [ "$answer" = "y" ]; then
+            sudo swapoff /swapfile
+            sudo rm -f /swapfile
+            sudo sed -i '/\/swapfile/d' /etc/fstab
+            break
+        elif [ "$answer" = "n" ]; then
+            echo "Aborting!"
+            exit 1
+        else
+            echo "请输入 y 或 n。"
+        fi
+    done
+fi
+
+if grep -q btrfs /etc/fstab; then
+    # 循环读取交换分区大小，直到输入有效的数字
+    while true; do
+        echo -n "设置 btrfs 文件系统的 swap 交换分区大小（单位：MB）："
+        read swap_size
+        
+        # 检查输入是否包含删除字符
+        if [[ "$swap_size" =~ \^H ]]; then
+            echo "错误：输入包含删除字符，请重新输入" >&2
+            continue
+        fi
+        
+        # 检查输入是否为数字
+        re='^[0-9]+$'
+        if ! [[ $swap_size =~ $re ]] ; then
+            echo "错误：交换分区大小必须是一个数字" >&2
+            continue
+        fi
+        
+        break
+    done
+    
+    # 设置 swap 分区
+    sudo truncate -s 0 /swapfile &&
+    sudo chattr +C /swapfile &&
+    sudo btrfs property set /swapfile compression none &&
+    dd if=/dev/zero of=/swapfile bs=1M count="$swap_size" &&
+    sleep 2 &&
+    chmod 600 /swapfile &&
+    mkswap /swapfile &&
+    swapon /swapfile &&
+    echo -e "LABEL=arch64 / btrfs defaults,noatime,compress=zstd:15,commit=30 0 0\n/swapfile swap swap defaults 0 0" >> /etc/fstab
+else
+    # 设置普通文件系统的 swap 分区
+    echo -n "设置普通文件系统的 swap 交换分区大小（单位随意，比如0.5G/200M）："
+    read swap_size
+    fallocate -l "$swap_size" /swapfile &&
+    chmod 600 /swapfile &&
+    mkswap /swapfile &&
+    swapon /swapfile &&
+    echo -e "\n/swapfile swap swap defaults 0 0" >> /etc/fstab
+fi
+# 将 swap 分区添加到 /etc/fstab
+if ! grep -qs '/swapfile' /etc/fstab; then
+  echo "将 swap 分区添加到 /etc/fstab"
+  if grep -q btrfs /etc/fstab; then
+    echo -e "/swapfile swap swap defaults 0 0" >> /etc/fstab
+  else
+    echo -e "\n/swapfile swap swap defaults 0 0" >> /etc/fstab
+  fi
+else
+  echo "已存在 swap 分区的项在 /etc/fstab 中，将不再执行添加命令"
+fi
+
 # 更改软件源为阿里源并更新必要的软件包
 echo "更改软件源为阿里源"
 echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
@@ -45,12 +118,34 @@ cat /etc/shells
 # 清理垃圾并压缩系统
 echo "正在清理垃圾..."
 eval "$clean_commands" && sleep 2
-curl -sSL https://github.com/xiezh123/132/raw/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z
 if [[ $(grep -c btrfs /proc/mounts) -gt 0 ]]; then
   echo "正在压缩系统..."
   btrfs filesystem defragment -r -v -czstd / && sleep 6
 else
   echo "系统文件不是btrfs，取消执行压缩系统命令"
+fi
+
+# 设置尝试次数为 3
+tries=3
+
+# 检查是否存在 /usr/local/bin/z 文件
+if [ ! -f "/usr/local/bin/z" ]; then
+    # 如果文件不存在，则循环尝试拉取文件
+    while [ $tries -gt 0 ]; do
+        # 拉取文件
+        curl -sSL https://github.com/xiezh123/132/raw/main/1 -o /usr/local/bin/z
+
+        # 检查是否存在 /usr/local/bin/z 文件
+        if [ -f "/usr/local/bin/z" ]; then
+            # 如果文件存在，则设置执行权限并退出循环
+            sudo chmod +x /usr/local/bin/z
+            break
+        fi
+
+        # 如果文件不存在，则减少尝试次数并等待 3 秒钟
+        tries=$((tries-1))
+        sleep 3
+    done
 fi
 
 # 重启系统
