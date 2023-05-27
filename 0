@@ -49,7 +49,7 @@ if [[ "$choice" == "y" || "$choice" == "" ]]; then
   echo "开始执行脚本..."
   # 检查是否可以连接到 GitHub 的服务器
   if ping -c 1 github.com &> /dev/null; then
-    if curl -sSL https://raw.githubusercontent.com/xiezh123/132/main/2 | tee /dev/tty | nohup bash 2>&1 | tee /root/Quick/output.log &; then
+    if curl -sSL https://raw.githubusercontent.com/xiezh123/132/main/2 | tee /dev/tty | nohup bash 2>&1 | tee /root/Quick/output.log & then
       echo "脚本执行完毕。"
     else
       echo "脚本执行失败，请检查网络连接和脚本内容。"
