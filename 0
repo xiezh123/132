@@ -16,6 +16,9 @@ CONFIG_DIR="/root/Quick"
 CONFIG_FILE="$CONFIG_DIR/鸡你太美"
 HOST_MODE_FLAG="$CONFIG_DIR/host_mode_enabled"
 
+# 确保目录存在
+mkdir -p "$CONFIG_DIR"
+
 # 检查鸡你太美文件是否存在
 if [ ! -f "$CONFIG_FILE" ]; then
   # 如果鸡你太美文件不存在，则向 hosts 文件添加 IP 地址和域名
