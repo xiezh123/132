@@ -110,7 +110,7 @@ var2='curl -sSL https://raw.staticdn.net/xiezh123/132/raw/main/1 -o /usr/local/b
 
 $ $var1 && $var2
 
-max_attempts=3
+max_attempts=5
 attempts=0
 while [[ $attempts -lt $max_attempts ]]; do
     attempts=$((attempts+1))
