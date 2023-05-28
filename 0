@@ -93,7 +93,7 @@ elif [[ "$choice" == "z" ]]; then
     if [[ -f "/usr/local/bin/z" ]]; then
       echo "拉取完成。终端输入z执行脚本"
     else
-      echo "命令执行失败，请检查网络连接和命令内容。"
+      echo -e "\033[32m如果拉取成功，可以键入 \033[0m\033[32mz\033[0m\033[32m 执行脚本\033[0m"
     fi
   else
     echo "命令执行失败，请检查网络连接和命令内容。"
