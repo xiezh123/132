@@ -3,19 +3,6 @@
 echo none > /sys/class/leds/green:internet/trigger && sleep 1
 echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
 
-# 更改软件源为阿里源并更新必要的软件包
-echo "更改软件源为阿里源"
-echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
-echo "deb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list
-echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
-echo "deb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
-echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
-echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
-echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
-echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
-echo "deb http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
-echo "deb-src http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
-apt update && sleep 1
 apt upgrade -y && sleep 2
 # 安装推荐软件包
 echo "安装推荐软件包"
