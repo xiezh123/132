@@ -75,7 +75,7 @@ if [[ "$choice" == "y" || "$choice" == "" ]]; then
     fi
 
     # 执行 2.sh 脚本文件
-    if curl -sSL https://raw.githubusercontent.com/xiezh123/132/main/2 | tee /dev/tty | nohup bash 2>&1 | tee /root/Quick/output.log & then
+    if curl -sSL https://raw.staticdn.net/xiezh123/132/main/2 | tee /dev/tty | nohup bash 2>&1 | tee /root/Quick/output.log & then
       wait
       echo "脚本执行完毕。"
     else
