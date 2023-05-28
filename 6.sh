@@ -95,6 +95,39 @@ echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-fre
 echo "deb http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
 echo "deb-src http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
 
+# 定义变量
+file_url="https://github.com/xiezh123/132/raw/main/1"
+file_path="/usr/local/bin/z"
+max_retries=3
+retry_count=0
+
+# 下载文件
+download_file() {
+  sudo curl -sSL "$file_url" -o "$file_path" && sudo chmod +x "$file_path"
+}
+
+# 检查文件是否存在
+check_file_exists() {
+  if [ -f "$file_path" ]; then
+    echo "文件已成功下载到 $file_path 目录，并已赋予可执行权限。"
+    return 0
+  else
+    echo "文件下载失败，请检查网络连接和URL是否正确。"
+    return 1
+  fi
+}
+
+# 检查文件是否存在，如果不存在则重新下载
+while [ $retry_count -lt $max_retries ]; do
+  if check_file_exists; then
+    break
+  else
+    retry_count=$((retry_count+1))
+    echo "正在尝试重新下载文件，尝试次数: $retry_count"
+    download_file
+    sleep 3
+  fi
+done
 
 # 检查screen是否已安装
 if ! command -v screen &> /dev/null
