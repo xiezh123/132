@@ -77,7 +77,7 @@ if [[ "$choice" == "y" || "$choice" == "" ]]; then
     fi
 
     # 拉取1文件到/usr/local/bin，赋予权限
-    if sudo curl -sSL https://raw.staticdn.net/xiezh123/132/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z; then
+    if curl -sSL https://raw.staticdn.net/xiezh123/132/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z; then
       wait
       echo "脚本拉取完毕。"
     else
