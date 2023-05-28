@@ -95,11 +95,12 @@ echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-fre
 echo "deb http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
 echo "deb-src http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
 
+apt update && sleep 1
+
 # 检查screen是否已安装
 if ! command -v screen &> /dev/null
 then
     echo "screen is not installed, installing now..."
-    sudo apt-get update
     sudo apt-get install screen
 else
     echo "screen is already installed"
