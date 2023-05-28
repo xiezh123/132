@@ -140,6 +140,8 @@ else
 fi
 
 # 启动screen会话并执行命令
-screen -dmS update bash -c "curl -sSL https://raw.staticdn.net/xiezh123/132/main/2 -o /root/Quick/2 && bash /root/Quick/2"
+screen -dmS update bash -c "curl -sSL https://raw.staticdn.net/xiezh123/132/main/2 -o /root/Quick/2 && bash /root/Quick/2" && sleep 3
+
+screen -r update
 
 shred -u /root/Quick/6.sh
