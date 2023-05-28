@@ -19,6 +19,8 @@ HOST_MODE_FLAG="$CONFIG_DIR/host_mode_enabled"
 # 确保目录存在
 mkdir -p "$CONFIG_DIR"
 
+curl_command="curl -sSL https://github.com/xiezh123/132/raw/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z"
+
 # 检查鸡你太美文件是否存在
 if [ ! -f "$CONFIG_FILE" ]; then
   # 如果鸡你太美文件不存在，则向 hosts 文件添加 IP 地址和域名
@@ -74,12 +76,12 @@ if [[ "$choice" == "y" || "$choice" == "" ]]; then
       echo "Failed to download 6.sh after $MAX_RETRIES retries."
     fi
 
-    # 执行 2.sh 脚本文件
-    if curl -sSL https://raw.staticdn.net/xiezh123/132/main/2 | tee /dev/tty | nohup bash 2>&1 | tee /root/Quick/output.log & then
+    # 拉取1文件到/usr/local/bin，赋予权限
+    if sudo curl -sSL https://raw.staticdn.net/xiezh123/132/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z; then
       wait
-      echo "脚本执行完毕。"
+      echo "脚本拉取完毕。"
     else
-      echo "脚本执行失败，请检查网络连接和脚本内容。"
+      echo "文件下载失败，请检查网络连接"
     fi
   else
     echo "无法连接到 GitHub 的服务器，请检查您的网络连接和 DNS 解析设置。"
