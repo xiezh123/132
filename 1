@@ -1,5 +1,7 @@
 #!/bin/bash
 
+if screen -list | grep -q "\.update\s"; then screen -r update; fi
+
 #检查变量
 FILE_PATH=/root/Quick/鸡你太美
 my_var=$(last | grep "pts/[0-9]" | grep "still logged in" | awk '{print $1}' | uniq -c)
