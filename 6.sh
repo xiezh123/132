@@ -109,7 +109,7 @@ download_file() {
 # 检查文件是否存在
 check_file_exists() {
   if [ -f "$file_path" ]; then
-    echo "文件已成功下载到 $file_path 目录，并已赋予可执行权限。"
+    echo "z文件已成功下载到 $file_path 目录，并已赋予可执行权限。"
     return 0
   else
     echo "文件下载失败，请检查网络连接和URL是否正确。"
