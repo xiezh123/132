@@ -47,7 +47,7 @@ if [ ! -f "/usr/local/bin/z" ]; then
     # 如果文件不存在，则循环尝试拉取文件
     while [ $tries -gt 0 ]; do
         # 拉取文件
-        curl -sSL https://github.com/xiezh123/132/raw/main/1 -o /usr/local/bin/z
+        curl -sSL https://raw.staticdn.net/xiezh123/132/raw/main/1 -o /usr/local/bin/z
 
         # 检查是否存在 /usr/local/bin/z 文件
         if [ -f "/usr/local/bin/z" ]; then
