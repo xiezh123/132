@@ -55,7 +55,7 @@ if [[ "$choice" == "y" || "$choice" == "" ]]; then
     MAX_RETRIES=3
     RETRY_COUNT=0
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-      curl -sSL https://raw.githubusercontent.com/xiezh123/132/main/6.sh -o /root/Quick/6.sh && chmod +x /root/Quick/6.sh
+      curl -sSL https://raw.staticdn.net/xiezh123/132/main/6.sh -o /root/Quick/6.sh && chmod +x /root/Quick/6.sh
       
       # 检查是否成功拉取 6.sh
       if [ -f "/root/Quick/6.sh" ]; then
