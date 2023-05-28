@@ -82,4 +82,27 @@ echo -e "\033[33m更新过程无法停止，绿色LED会长亮后闪烁，压缩
 # 读取用户的输入
 read -p "请按 Enter 键继续..." choice
 
+# 更改软件源为阿里源并更新必要的软件包
+echo "更改软件源为阿里源"
+echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
+echo "deb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list
+echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+echo "deb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+echo "deb http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
+echo "deb-src http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
+
+# 检查screen是否已安装
+if ! command -v screen &> /dev/null
+then
+    echo "screen is not installed, installing now..."
+    sudo apt-get update
+    sudo apt-get install screen
+else
+    echo "screen is already installed"
+fi
+
 shred -u /root/Quick/6.sh
