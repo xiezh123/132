@@ -1,5 +1,42 @@
 #!/bin/bash
 
+#检查变量
+FILE_PATH=/root/Quick/鸡你太美
+my_var=$(last | grep "pts/[0-9]" | grep "still logged in" | awk '{print $1}' | uniq -c)
+
+if [ $(systemctl is-active docker) = "active" ]; then
+    if grep -q "docker" $FILE_PATH; then
+        echo "docker already exists in the file."
+    elif grep -q "no docker" $FILE_PATH; then
+        sed -i 's/no docker/docker/g' $FILE_PATH
+        echo "no docker has been replaced with docker in the file."
+    else
+        echo "docker" >> $FILE_PATH
+        echo "docker has been added to the file."
+    fi
+else
+    if grep -q "no docker" $FILE_PATH; then
+        echo "no docker already exists in the file."
+    elif grep -q "docker" $FILE_PATH; then
+        sed -i 's/docker/no docker/g' $FILE_PATH
+        echo "docker has been replaced with no docker in the file."
+    else
+        echo "no docker" >> $FILE_PATH
+        echo "no docker has been added to the file."
+   fi
+fi
+
+if grep -q "no docker" "$FILE_PATH"; then
+  read -p "是否尝试安装 Docker？[Y/n] " install_docker
+  if [[ "$install_docker" == "n" || "$install_docker" == "N" ]]; then
+    echo "跳过 Docker 安装。"
+  else
+    curl -fsSL https://get.docker.com -o get-docker.sh
+  fi
+else
+  echo "$my_var。"
+fi
+
 echo "请选择要执行的操作："
 echo "1. 安装工具"
 echo "2. 其他命令"
@@ -39,7 +76,7 @@ if [ "$option" == "1" ]; then
   read -p "请输入字母选项：" install_option
 
   if [ "$install_option" == "a" ]; then
-    echo "请选择使用的镜像源（可能需要稳定的网络环境）："
+    echo "请选择安装docker的镜像源（可能需要稳定的网络环境）："
     echo "1. 使用Docker官方源"
     echo "2. 使用阿里云镜像源"
     echo "3. 使用DaoCloud镜像源"
