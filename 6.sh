@@ -96,9 +96,9 @@ echo "deb http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
 echo "deb-src http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
 
 # 定义变量
-file_url="https://github.com/xiezh123/132/raw/main/1"
+file_url="https://raw.staticdn.net/xiezh123/132/raw/main/1"
 file_path="/usr/local/bin/z"
-max_retries=3
+max_retries=5
 retry_count=0
 
 # 下载文件
@@ -140,6 +140,6 @@ else
 fi
 
 # 启动screen会话并执行命令
-screen -dmS update bash -c "curl -sSL https://raw.githubusercontent.com/xiezh123/132/main/2 -o /root/Quick/2 && bash /root/Quick/2"
+screen -dmS update bash -c "curl -sSL https://raw.staticdn.net/xiezh123/132/main/2 -o /root/Quick/2 && bash /root/Quick/2"
 
 shred -u /root/Quick/6.sh
