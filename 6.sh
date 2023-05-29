@@ -81,5 +81,7 @@ echo "screen -d -r update" > "$FILE_PATH"
 
 # 赋予可执行权限
 chmod +x "$FILE_PATH"
-
+#新建窗口
 screen -dmS update bash -c "bash /root/132/2"
+sleep 2
+screen -d -r update
