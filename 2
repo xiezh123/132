@@ -29,7 +29,7 @@ fi
 # 设置尝试次数为 3
 tries=3
 
-# 检查是否存在 /usr/local/bin/z 文件
+# 继续检查是否存在 /usr/local/bin/z 文件
 if [ ! -f "/usr/local/bin/z" ]; then
     # 如果文件不存在，则循环尝试拉取文件
     while [ $tries -gt 0 ]; do
@@ -54,6 +54,7 @@ echo "重启以确保稳定性..."
 eval "$clean_commands" && sleep 1
 echo -e "\033[33;32m如需执行脚本，可以在终端输入：z\033[0m"
 echo none > /sys/class/leds/green:internet/trigger && sleep 1
-sudo rm /root/Quick/2
+sudo rm /root/Quick/2 && sleep 1
+sudo rm /root/Quick/6.sh
 sleep 1
 #/sbin/reboot
