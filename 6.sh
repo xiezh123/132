@@ -73,34 +73,6 @@ else
   echo "已存在 swap 分区的项在 /etc/fstab 中，将不再执行添加命令"
 fi
 
-# 更改软件源为阿里源并更新必要的软件包
-echo "更改软件源为阿里源"
-echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
-echo "deb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list
-echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
-echo "deb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
-echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
-echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
-echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
-echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
-echo "deb http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
-echo "deb-src http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
-
-# 检查screen是否已安装
-if ! command -v screen &> /dev/null
-then
-    echo "screen is not installed, installing now..."
-    sudo apt-get update
-    sudo apt-get install screen -y
-else
-    echo "screen is already installed"
-fi
-
-var1='curl -sSL https://raw.staticdn.net/xiezh123/132/main/2 -o /root/Quick/2 && sudo chmod +x /root/Quick/2'#更新脚本
-var2='curl -sSL https://raw.staticdn.net/xiezh123/132/raw/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z'#脚本菜单
-
-$ $var1 && $var2
-
 # 定义文件路径
 FILE_PATH="/usr/local/bin/x"
 
@@ -110,19 +82,4 @@ echo "screen -d -r update" > "$FILE_PATH"
 # 赋予可执行权限
 chmod +x "$FILE_PATH"
 
-max_attempts=5
-attempts=0
-while [[ $attempts -lt $max_attempts ]]; do
-    attempts=$((attempts+1))
-    curl -sSL https://raw.staticdn.net/xiezh123/132/main/2 -o /root/Quick/2
-    if test -f "/root/Quick/2"; then
-        echo "File downloaded successfully"
-        screen -dmS update bash -c "bash /root/Quick/2"
-        sleep 2
-        screen -r update
-        break
-    else
-        echo "File not found, retrying in 3 seconds..."
-        sleep 3
-    fi
-done
+screen -dmS update bash -c "bash /root/132/2"
