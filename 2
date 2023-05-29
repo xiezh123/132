@@ -61,17 +61,25 @@ echo timer > /sys/class/leds/green\:internet/trigger && echo 1000 > /sys/class/l
 echo "安装Docker." && sleep 1
 #wget -qO- https://get.docker.com | bash -s docker --mirror Aliyun
 
-if ! command -v docker &> /dev/null; then
-    echo "正在安装 Docker..."
-    wget -qO- https://get.docker.com | bash -s docker --mirror Aliyun
-fi
+attempt=0
+while [ $attempt -lt 5 ]; do
+    if ! command -v docker &> /dev/null; then
+        echo "正在安装 Docker..."
+        wget -qO- https://get.docker.com | bash -s docker --mirror Aliyun
+    fi
 
-# 检查 Docker 是否成功安装
-if command -v docker &> /dev/null; then
-    echo "Docker 已成功安装。"
-else
-    echo "Docker 安装失败，正在尝试重新安装..."
-    wget -qO- https://get.docker.com | bash -s docker --mirror Aliyun
+    # 检查 Docker 是否成功安装
+    if command -v docker &> /dev/null; then
+        echo "Docker 已成功安装。"
+        break
+    else
+        echo "Docker 安装失败，正在尝试重新安装..."
+        attempt=$((attempt+1))
+    fi
+done
+
+if [ $attempt -eq 5 ]; then
+    echo "Docker 安装失败。请检查您的网络连接并重试。"
 fi
 
 # 清理垃圾并压缩系统
