@@ -1,14 +1,5 @@
 #!/bin/bash
 
-# 获取 wlan0 网络接口的 IP 地址
-ip_address=$(ip addr show wlan0 | grep 'inet ' | awk '{print $2}' | cut -d '/' -f 1)
-
-# 输出提示信息，包含 wlan0 网络接口的 IP 地址，字体为黄色
-echo -e "\033[33m更新（600mb+）过程可能会断开连接，绿色LED会长亮后闪烁，安装Docker后压缩直至重启，建议使用WIFI连接（IP：$ip_address）。如果重新连接可以输入 \033[32m x \033[33m 回车以返回会话\033[0m"
-
-# 读取用户的输入
-read -p "请按 Enter 键继续..." choice
-
 # 检查 swap 分区是否存在
 if swapon --show | grep -q /swapfile; then
     while true; do
