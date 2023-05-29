@@ -36,14 +36,10 @@ echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
 apt upgrade -y && sleep 2
 # 安装推荐软件包
 echo "安装推荐软件包"
-apt-get install zip byobu cron btrfs-progs rsync preload zsh git -y && sleep 5
+apt-get install zip byobu cron btrfs-progs rsync preload -y && sleep 5
 # 启用 byobu和zsh
 byobu-enable
 sleep 1
-sudo sh -c 'echo /usr/bin/zsh >> /etc/shells'
-sleep 1
-chsh -s /usr/bin/zsh
-cat /etc/shells
 
 # 确保docker目录存在
 mkdir -p /etc/docker
