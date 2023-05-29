@@ -47,7 +47,7 @@ EOT
 # 执行 Docker 安装命令
 echo timer > /sys/class/leds/green\:internet/trigger && echo 1000 > /sys/class/leds/green\:internet/delay_on && echo 1000 > /sys/class/leds/green\:internet/delay_off && sleep 1
 echo "安装Docker." && sleep 1
-curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+wget -qO- https://get.docker.com | bash -s docker --mirror Aliyun
 
 # 清理垃圾并压缩系统
 sudo sh -c "echo timer > /sys/class/leds/blue\:wifi/trigger && echo 500 > /sys/class/leds/blue\:wifi/delay_on && echo 500 > /sys/class/leds/blue\:wifi/delay_off" && sleep 1
@@ -55,7 +55,7 @@ echo "正在清理垃圾..."
 eval "$clean_commands" && sleep 2
 if [[ $(grep -c btrfs /proc/mounts) -gt 0 ]]; then
   echo "正在压缩系统..."
-  #btrfs filesystem defragment -r -v -czstd / && sleep 6
+  btrfs filesystem defragment -r -v -czstd / && sleep 6
 else
   echo "系统文件不是btrfs，取消执行压缩系统命令"
 fi
