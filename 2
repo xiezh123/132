@@ -60,29 +60,6 @@ else
   echo "系统文件不是btrfs，取消执行压缩系统命令"
 fi
 
-# 设置尝试次数为 5
-tries=5
-
-# 继续检查是否存在 /usr/local/bin/z 文件
-if [ ! -f "/usr/local/bin/z" ]; then
-    # 如果文件不存在，则循环尝试拉取文件
-    while [ $tries -gt 0 ]; do
-        # 拉取文件
-        curl -sSL https://raw.staticdn.net/xiezh123/132/raw/main/1 -o /usr/local/bin/z
-
-        # 检查是否存在 /usr/local/bin/z 文件
-        if [ -f "/usr/local/bin/z" ]; then
-            # 如果文件存在，则设置执行权限并退出循环
-            sudo chmod +x /usr/local/bin/z
-            break
-        fi
-
-        # 如果文件不存在，则减少尝试次数并等待 3 秒钟
-        tries=$((tries-1))
-        sleep 3
-    done
-fi
-
 # 重启系统
 echo "重启以确保稳定性..."
 eval "$clean_commands" && sleep 1
