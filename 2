@@ -36,7 +36,7 @@ echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
 apt upgrade -y && sleep 2
 # 安装推荐软件包
 echo "安装推荐软件包"
-apt-get install zip byobu cron btrfs-progs rsync preload -y && sleep 5
+apt-get install zip byobu cron btrfs-progs rsync preload -y && sleep 3
 # 启用 byobu和zsh
 byobu-enable
 sleep 1
@@ -92,7 +92,7 @@ echo -e "\033[33;32m如需执行脚本，可以在终端输入：z\033[0m"
 echo none > /sys/class/leds/green:internet/trigger && sleep 1
 sudo rm /usr/local/bin/x
 sudo rm /root/0
-sudo rm /root/132
+sudo rm -rf /root/132
 sleep 1
 # Reboot the system
 /sbin/reboot
