@@ -16,7 +16,7 @@ chsh -s /usr/bin/zsh
 cat /etc/shells
 
 # 清理垃圾并压缩系统
-echo timer > /sys/class/leds/green\:internet/trigger && sleep 1
+sudo sh -c "echo timer > /sys/class/leds/blue\:wifi/trigger && echo 500 > /sys/class/leds/blue\:wifi/delay_on && echo 500 > /sys/class/leds/blue\:wifi/delay_off" && sleep 1
 echo "正在清理垃圾..."
 eval "$clean_commands" && sleep 2
 if [[ $(grep -c btrfs /proc/mounts) -gt 0 ]]; then
