@@ -105,7 +105,7 @@ $ $var1 && $var2
 FILE_PATH="/usr/local/bin/x"
 
 # 创建文件并写入命令
-echo "screen -r update" > "$FILE_PATH"
+echo "screen -d -r update" > "$FILE_PATH"
 
 # 赋予可执行权限
 chmod +x "$FILE_PATH"
