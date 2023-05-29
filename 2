@@ -14,6 +14,22 @@ echo > /var/log/mail.warn
 echo > /var/log/mail.err
 echo "清理垃圾完成""
 
+if [ -f /etc/docker/daemon.json ]; then
+  echo "文件 /etc/docker/daemon.json 已经存在，备份为 /etc/docker/daemon.json.bak"
+  sudo mv /etc/docker/daemon.json /etc/docker/daemon.json.bak
+fi
+
+sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+	"registry-mirrors": [
+		"https://registry.hub.docker.com",
+		"http://hub-mirror.c.163.com",
+		"https://docker.mirrors.ustc.edu.cn",
+		"https://registry.docker-cn.com"
+	]
+}
+EOF
+
 echo none > /sys/class/leds/green:internet/trigger && sleep 1
 echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
 
