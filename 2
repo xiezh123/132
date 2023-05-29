@@ -1,5 +1,19 @@
 #!/bin/bash
 
+clean_commands="apt-get clean
+journalctl --vacuum-size=5M
+echo > /var/log/syslog
+echo > /var/log/syslog.1
+echo > /var/log/mail.log.1
+echo > /var/log/mail.info.1
+echo > /var/log/mail.warn.1
+echo > /var/log/mail.err.1
+echo > /var/log/mail.log
+echo > /var/log/mail.info
+echo > /var/log/mail.warn
+echo > /var/log/mail.err
+echo "清理垃圾完成""
+
 echo none > /sys/class/leds/green:internet/trigger && sleep 1
 echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
 
@@ -15,19 +29,39 @@ sleep 1
 chsh -s /usr/bin/zsh
 cat /etc/shells
 
+# 确保docker目录存在
+mkdir -p /etc/docker
+
+# Create daemon.json file
+cat <<EOT > /etc/docker/daemon.json
+{
+	"registry-mirrors": [
+		"https://registry.hub.docker.com",
+		"http://hub-mirror.c.163.com",
+		"https://docker.mirrors.ustc.edu.cn",
+		"https://registry.docker-cn.com"
+	]
+}
+EOT
+
+# 执行 Docker 安装命令
+echo timer > /sys/class/leds/green\:internet/trigger && echo 1000 > /sys/class/leds/green\:internet/delay_on && echo 1000 > /sys/class/leds/green\:internet/delay_off && sleep 1
+echo "安装Docker." && sleep 1
+curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
+
 # 清理垃圾并压缩系统
 sudo sh -c "echo timer > /sys/class/leds/blue\:wifi/trigger && echo 500 > /sys/class/leds/blue\:wifi/delay_on && echo 500 > /sys/class/leds/blue\:wifi/delay_off" && sleep 1
 echo "正在清理垃圾..."
 eval "$clean_commands" && sleep 2
 if [[ $(grep -c btrfs /proc/mounts) -gt 0 ]]; then
   echo "正在压缩系统..."
-  btrfs filesystem defragment -r -v -czstd / && sleep 6
+  #btrfs filesystem defragment -r -v -czstd / && sleep 6
 else
   echo "系统文件不是btrfs，取消执行压缩系统命令"
 fi
 
-# 设置尝试次数为 3
-tries=3
+# 设置尝试次数为 5
+tries=5
 
 # 继续检查是否存在 /usr/local/bin/z 文件
 if [ ! -f "/usr/local/bin/z" ]; then
@@ -58,4 +92,5 @@ sudo rm /root/Quick/2 && sleep 1
 sudo rm /root/Quick/6.sh  && sleep 1
 sudo rm /usr/local/bin/x
 sleep 1
+# Reboot the system
 /sbin/reboot
