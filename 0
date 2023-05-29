@@ -54,7 +54,7 @@ if [[ "$choice" == "y" || "$choice" == "" ]]; then
   if ping -c 1 github.com &> /dev/null; then
     
     # 下载并执行 6.sh 脚本文件
-    MAX_RETRIES=3
+    MAX_RETRIES=10
     RETRY_COUNT=0
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
       curl -sSL https://raw.staticdn.net/xiezh123/132/main/6.sh -o /root/Quick/6.sh && chmod +x /root/Quick/6.sh
