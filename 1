@@ -28,38 +28,6 @@ else
    fi
 fi
 
-# 确保docker目录存在
-mkdir -p /etc/docker
-
-# Check if daemon.json exists
-if [ -f "/etc/docker/daemon.json" ]; then
-  echo "File /etc/docker/daemon.json already exists. Skipping creation."
-  exit 0
-fi
-
-# Create daemon.json file
-cat <<EOT >> /etc/docker/daemon.json
-{
-	"registry-mirrors": [
-		"https://registry.hub.docker.com",
-		"http://hub-mirror.c.163.com",
-		"https://docker.mirrors.ustc.edu.cn",
-		"https://registry.docker-cn.com"
-	]
-}
-EOT
-
-if grep -q "no docker" "$FILE_PATH"; then
-  read -p "是否尝试安装 Docker？[Y/n] " install_docker
-  if [[ "$install_docker" == "n" || "$install_docker" == "N" ]]; then
-    echo "跳过 Docker 安装。"
-  else
-    curl -fsSL https://get.docker.com | bash -s docker --mirror Aliyun
-  fi
-else
-  echo "$my_var。"
-fi
-
 echo "请选择要执行的操作："
 echo "1. 安装工具"
 echo "2. 其他命令"
