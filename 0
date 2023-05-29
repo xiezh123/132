@@ -4,7 +4,7 @@
 ip_list="140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com\n140.82.121.3 http://github.com\n140.82.121.3 http://gist.github.com\n185.199.110.153 http://assets-cdn.github.com\n185.199.108.133 http://raw.githubusercontent.com\n185.199.111.133 http://gist.githubusercontent.com\n185.199.110.133 http://cloud.githubusercontent.com\n185.199.111.133 http://camo.githubusercontent.com\n185.199.111.133 http://avatars0.githubusercontent.com\n185.199.110.133 http://avatars1.githubusercontent.com\n185.199.111.133 http://avatars2.githubusercontent.com\n185.199.109.133 http://avatars3.githubusercontent.com\n185.199.108.133 http://avatars4.githubusercontent.com\n185.199.111.133 http://avatars5.githubusercontent.com\n185.199.109.133 http://avatars6.githubusercontent.com\n185.199.109.133 http://avatars7.githubusercontent.com\n185.199.110.133 http://avatars8.githubusercontent.com\n185.199.108.133 http://avatars.githubusercontent.com\n185.199.111.154 http://github.githubassets.com\n185.199.109.133 http://user-images.githubusercontent.com\n140.82.112.9 http://codeload.github.com\n185.199.110.133 http://favicons.githubusercontent.com\n192.30.255.116 http://api.github.com"
 
 # Add /root to the PATH environment variable
-echo 'export PATH="$PATH:/root/Quick"' >> ~/.bashrc
+echo 'export PATH="$PATH:/root"' >> ~/.bashrc
 
 # Reload the updated .bashrc file
 source ~/.bashrc
@@ -12,12 +12,9 @@ source ~/.bashrc
 echo '/root has been added to the PATH variable'
 
 # 配置文件路径和标志文件路径
-CONFIG_DIR="/root/Quick"
+CONFIG_DIR="/root"
 CONFIG_FILE="$CONFIG_DIR/鸡你太美"
 HOST_MODE_FLAG="$CONFIG_DIR/host_mode_enabled"
-
-# 确保目录存在
-mkdir -p "$CONFIG_DIR"
 
 curl_command="curl -sSL https://github.com/xiezh123/132/raw/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z"
 
@@ -54,59 +51,55 @@ echo -e "\033[33m更新（600mb+）过程可能会断开连接，绿色LED会长
 # 读取用户的输入
 read -p "请按 Enter 键继续..." choice
 
-read -p "回车更新，z拉取脚本(y/z)" choice
+# 更改软件源为阿里源并更新必要的软件包
+echo "更改软件源为阿里源"
+echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
+echo "deb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list
+echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+echo "deb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+echo "deb http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
+echo "deb-src http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
 
-if [[ "$choice" == "y" || "$choice" == "" ]]; then
-  echo "开始执行脚本..."
-  
-  # 检查是否可以连接到 GitHub 的服务器
-  if ping -c 1 github.com &> /dev/null; then
-    
-    # 下载并执行 6.sh 脚本文件
-    MAX_RETRIES=10
-    RETRY_COUNT=0
-    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-      curl -sSL https://raw.staticdn.net/xiezh123/132/main/6.sh -o /root/Quick/6.sh && chmod +x /root/Quick/6.sh
-      
-      # 检查是否成功拉取 6.sh
-      if [ -f "/root/Quick/6.sh" ]; then
-        echo "6.sh has been downloaded successfully!"
-        bash /root/Quick/6.sh
-        break
-      else
-        echo "Failed to download 6.sh, retrying..."
-        RETRY_COUNT=$((RETRY_COUNT+1))
-        sleep 3
-      fi
-    done
 
-    # 检查是否成功拉取 6.sh
-    if [ ! -f "/root/Quick/6.sh" ]; then
-      echo "Failed to download 6.sh after $MAX_RETRIES retries."
-    fi
-
-    # 拉取1文件到/usr/local/bin，赋予权限
-    if curl -sSL https://raw.staticdn.net/xiezh123/132/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z; then
-      wait
-      echo "脚本拉取完毕。"
-    else
-      echo "文件下载失败，请检查网络连接"
-    fi
-  else
-    echo "无法连接到 GitHub 的服务器，请检查您的网络连接和 DNS 解析设置。"
-  fi
-elif [[ "$choice" == "z" ]]; then
-  echo "确保您的网络连接正常，并且 DNS 解析正确。您可以尝试使用 ping 命令来测试是否可以连接到 GitHub的服务器。"
-  if curl -sSL https://github.com/xiezh123/132/raw/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z; then
-    sleep 3
-    if [[ -f "/usr/local/bin/z" ]]; then
-      echo "拉取完成。终端输入z执行脚本"
-    else
-      echo -e "\033[32m如果拉取成功，可以键入 \033[0m\033[32mz\033[0m\033[32m 执行脚本\033[0m"
-    fi
-  else
-    echo "命令执行失败，请检查网络连接和命令内容。"
-  fi
+# 检查screen和git是否已安装
+if ! command -v screen &> /dev/null
+then
+    echo "screen is not installed, installing now..."
+    sudo apt-get update
+    sudo apt-get install screen git -y
 else
-  echo "无效的选项：$choice"
+    echo "安装工具1"
 fi
+
+# 设置尝试次数
+max_attempts=5
+
+# 尝试克隆仓库并检查目录是否存在
+for ((attempt=1; attempt<=max_attempts; attempt++)); do
+  sudo git clone https://github.com/xiezh123/132.git /root/132
+  if [ -d /root/132 ]; then
+    echo "仓库克隆成功。"
+    break
+  else
+    echo "无法克隆仓库。等待5秒后重试..."
+    sleep 5
+  fi
+done
+
+# 检查目录是否存在
+if [ -d /root/132 ]; then
+  echo "目录 /root/132 存在。"
+  # 移动文件
+  sudo mv /root/132/1 /usr/local/bin/z
+  sudo chmod +x /usr/local/bin/z
+  echo "文件 /root/132/1 已移动到 /usr/local/bin/z，并赋予可执行权限。"
+else
+  echo "目录 /root/132 不存在。"
+fi
+
+# 赋予文件执行权限并执行
+sudo chmod +x /root/132/6.sh && bash /root/132/6.sh
