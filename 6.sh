@@ -22,7 +22,7 @@ fi
 if grep -q btrfs /etc/fstab; then
     # 循环读取交换分区大小，直到输入有效的数字
     while true; do
-        echo -n "设置 btrfs 文件系统的 swap 交换分区大小（单位：MB）："
+        echo -ne "\e[33m设置 btrfs 文件系统的 swap 交换分区大小（单位：MB）：\e[0m"
         read swap_size
         
         # 检查输入是否包含删除字符
