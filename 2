@@ -14,6 +14,8 @@ echo > /var/log/mail.warn
 echo > /var/log/mail.err
 echo "清理垃圾完成""
 
+sudo mkdir /etc/docker
+
 if [ -f /etc/docker/daemon.json ]; then
   echo "文件 /etc/docker/daemon.json 已经存在，备份为 /etc/docker/daemon.json.bak"
   sudo mv /etc/docker/daemon.json /etc/docker/daemon.json.bak
