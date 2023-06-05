@@ -110,6 +110,7 @@ if [ "$option" == "1" ]; then
     if [ "$panel_option" == "1" ]; then
         echo "安装 Debian 版本..."
         ## 执行安装命令
+        docker pull whyour/qinglong:debian && sleep 2
         docker run -dit \
         -v $PWD/ql:/ql/data \
         -p 5700:5700 \
