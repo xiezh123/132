@@ -286,6 +286,7 @@ elif [ "$option" == "2" ]; then
   elif [ "$check_option" == "h" ]; then
     bash -c "$(curl -L gitee.com/ojf6ii/led-control-script/raw/master/led.sh)"
   elif [ "$check_option" == "i" ]; then
+    read -p "需要4g左右空间，速度由棒子体质决定，回车继续"
     sudo apt-get update && sudo apt-get install xrdp -y && sleep 3
     sudo service xrdp start -y && apt-get install task-xfce-desktop -y && sleep 3
     read -p "请输入用户名：" username
