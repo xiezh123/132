@@ -204,6 +204,7 @@ elif [ "$option" == "2" ]; then
   echo "f. 更改CPU频率"
   echo "g. 查看emmc"
   echo "h. LED控制选项"
+  echo "i. 安装桌面（xfce）"
   read -p "请输入选项（a、b、c、d、e）：" check_option
 
   if [ "$check_option" == "a" ]; then
@@ -284,6 +285,18 @@ elif [ "$option" == "2" ]; then
     cat /sys/class/mmc_host/mmc0/mmc0\:0001/life_time
   elif [ "$check_option" == "h" ]; then
     bash -c "$(curl -L gitee.com/ojf6ii/led-control-script/raw/master/led.sh)"
+  elif [ "$check_option" == "i" ]; then
+    sudo apt-get update && sudo apt-get install xrdp -y && sleep 3
+    sudo service xrdp start -y && apt-get install task-xfce-desktop -y && sleep 3
+    read -p "请输入用户名：" username
+    read -p "请输入密码：" password
+    adduser "$username"
+    echo "$username:$password" | chpasswd
+    sudo apt-get install -y openssh-server
+    sudo systemctl start ssh
+    GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+echo -e "${GREEN}请使用远程桌面客户端连接到服务器，并使用用户名和密码登录。${NC}"
   else
     echo "选项不存在"
   fi
