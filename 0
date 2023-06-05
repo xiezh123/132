@@ -63,11 +63,10 @@ if swapon --show | grep -q /swapfile; then
     done
 fi
 
-# 检查 fstab 中是否存在 btrfs 文件系统的条目
 if grep -q btrfs /etc/fstab; then
     # 循环读取交换分区大小，直到输入有效的数字
     while true; do
-        read -p "$(echo -e "\e[33m设置 btrfs 文件系统的 swap 交换分区大小（单位：MB）：\e[0m")" swap_size
+        read -t 30 -p "$(echo -e "\e[33m设置 btrfs 文件系统的 swap 交换分区大小（单位：MB）：\e[0m")" swap_size
         
         # 检查输入是否为数字
         if ! [[ "$swap_size" =~ ^[0-9]+$ ]]; then
