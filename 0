@@ -167,6 +167,12 @@ else
   echo "目录 /root/132 不存在。"
 fi
 
+# 定义文件路径
+FILE_PATH="/usr/local/bin/x"
+
+# 创建文件并写入命令
+echo "screen -d -r update" > "$FILE_PATH"
+
 # 赋予可执行权限
 chmod +x "$FILE_PATH"
 #新建窗口
