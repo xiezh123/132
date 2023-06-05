@@ -12,7 +12,7 @@ source ~/.bashrc
 echo '/root has been added to the PATH variable'
 
 # 配置文件路径和标志文件路径
-CONFIG_DIR="/root"
+CONFIG_DIR="/home"
 CONFIG_FILE="$CONFIG_DIR/鸡你太美"
 HOST_MODE_FLAG="$CONFIG_DIR/host_mode_enabled"
 
