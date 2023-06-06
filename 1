@@ -246,8 +246,7 @@ elif [ "$option" == "2" ]; then
   # 检查 cpufrequtils 是否已安装，如果未安装则自动安装
   if ! dpkg -s cpufrequtils > /dev/null 2>&1 ; then
       echo "cpufrequtils 尚未安装，正在安装..."
-      sudo apt-get update
-      sudo apt-get install cpufrequtils
+      sudo apt-get install cpufrequtils -y
   fi
 
   # 显示选择菜单
