@@ -95,7 +95,8 @@ if grep -q btrfs /etc/fstab; then
     chmod 600 /swapfile &&
     mkswap /swapfile &&
     swapon /swapfile &&
-    echo -e "LABEL=arch64 / btrfs defaults,noatime,compress=zstd:15,commit=30 0 0\n/swapfile swap swap defaults 0 0" >> /etc/fstab
+    sudo sed -i '/LABEL=arch64 \/ btrfs/d' /etc/fstab
+    echo -e "LABEL=arch64 / btrfs defaults,noatime,compress=zstd:15,commit=30 0 0" >> /etc/fstab
 else
     # 设置普通文件系统的 swap 分区
     echo -n "设置普通文件系统的 swap 交换分区大小（单位随意，比如0.5G/500M）："
