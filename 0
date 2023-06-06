@@ -194,6 +194,7 @@ PERCENT=10
 PRIORITY=200' > zramswap
 
 #移动到/etc/default并且启用自启服务
+sudo cp /etc/default/zramswap /etc/default/zramswap.bak
 sudo rm -f /etc/default/zramswap
 sudo mv zram.sh /etc/default/zram.sh
 sudo mv zramswap /etc/default/zramswap
