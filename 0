@@ -87,13 +87,21 @@ if grep -q btrfs /etc/fstab; then
     done
     
     # 设置 swap 分区
+    SIZE=$((swap_size/2))
+    SIZE1="${SIZE}M"
     sudo truncate -s 0 /swapfile &&
     sudo chattr +C /swapfile &&
     sudo btrfs property set /swapfile compression none &&
-    dd if=/dev/zero of=/swapfile bs=1M count="$swap_size" &&
+    dd if=/dev/zero of=/swapfile bs=1M count="$SIZE" &&
     sleep 2 &&
     chmod 600 /swapfile &&
     mkswap /swapfile &&
+    sudo swapoff /dev/zram0 &&
+    sudo zramctl -r /dev/zram0
+    modprobe zram
+    zram_dev=$(zramctl --find --size $SIZE1)
+    mkswap $zram_dev
+    swapon $zram_dev
     swapon /swapfile &&
     sudo rm /etc/fstab &&
     sudo touch /etc/fstab &&
