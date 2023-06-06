@@ -182,8 +182,23 @@ zram_dev=$(sudo zramctl --find --size $swapfile_size)
 sudo mkswap $zram_dev
 sudo swapon $zram_dev' > zram.sh
 
+echo '#脚本
+# 压缩算法，效果: zstd > lzo > lz4，速度: lz4 > zstd > lzo，默认lz4
+ALGO=zstd
+
+#由于自定义了zram，此项作废
+PERCENT=10
+#SIZE=256
+
+#交换分区优先级
+PRIORITY=200' > zramswap
+
 #移动到/etc/default并且启用自启服务
+sudo rm -f /etc/default/zramswap
 sudo mv zram.sh /etc/default/zram.sh
+sudo mv zramswap /etc/default/zramswap
+sudo chmod +x /etc/default/zramswap
+sudo chmod +x /etc/default/zram.sh
 
 echo '[Unit]
 Description=Setup Zram swap
@@ -201,8 +216,6 @@ WantedBy=multi-user.target' | sudo tee /etc/systemd/system/zram.service
 sudo systemctl daemon-reload
 
 sudo systemctl enable zram.service
-
-sudo chmod +x /etc/default/zram.sh
 
 #sudo systemctl status zram.service  # 查看服务状态
 
