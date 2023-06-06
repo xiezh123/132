@@ -152,9 +152,13 @@ sudo mv zram.sh /etc/default/zram.sh
 
 echo '[Unit]
 Description=Setup Zram swap
+After=local-fs.target
 
 [Service]
+ExecStartPre=/bin/sleep 30
 ExecStart=/etc/default/zram.sh
+Type=oneshot
+RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target' | sudo tee /etc/systemd/system/zram.service
@@ -163,7 +167,9 @@ sudo systemctl daemon-reload
 
 sudo systemctl enable zram.service
 
-sudo systemctl status zram.service  # 查看服务状态
+sudo chmod +x /etc/default/zram.sh
+
+#sudo systemctl status zram.service  # 查看服务状态
 
 # 更改软件源为阿里源并更新必要的软件包
 echo "使用阿里源更新"
