@@ -88,6 +88,7 @@ if grep -q btrfs /etc/fstab; then
     
     # 设置 swap 分区
     SIZE=$((swap_size/2))
+    export zram="$SIZE"
     SIZE1="${SIZE}M"
     sudo truncate -s 0 /swapfile &&
     sudo chattr +C /swapfile &&
