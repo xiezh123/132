@@ -294,6 +294,10 @@ elif [ "$option" == "2" ]; then
     echo "$username:$password" | chpasswd
     sudo apt-get install -y openssh-server
     sudo systemctl start ssh
+    wget https://dldir1.qq.com/qqfile/qq/QQNT/ad5b5393/linuxqq_3.1.2-13107_arm64.deb && sudo dpkg -i linuxqq_3.1.2-13107_arm64.deb
+    sudo rm /root/linuxqq_3.1.2-13107_arm64.deb
+    wget https://wps-linux-personal.wpscdn.cn/wps/download/ep/Linux2019/11698/wps-office_11.1.0.11698_arm64.deb && sudo chmod a+r /root/wps-office_11.1.0.11698_arm64.deb
+    sudo apt install /root/wps-office_11.1.0.11698_arm64.deb -y && sudo rm /root/wps-office_11.1.0.11698_arm64.deb
     GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 echo -e "${GREEN}请使用远程桌面客户端连接到服务器，并使用用户名和密码登录。${NC}"
