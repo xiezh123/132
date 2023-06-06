@@ -64,10 +64,45 @@ if swapon --show | grep -q /swapfile; then
     done
 fi
 
+# 获取当前swap分区的大小，单位为MB
+current_swap=$(sudo swapon --show | awk '/\/dev\/zram/ {print $3}' | sed 's/M//')
+
+# 如果当前swap分区大小为空，则设置为0
+if [ -z "$current_swap" ]; then
+    current_swap=0
+fi
+
+# 获取当前可用内存的大小，单位为MB
+mem=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
+
+# 获取当前总内存的大小，单位为GB或MB
+total_mem=$(free -h | awk '/^Mem:/ {print $2}')
+
+# 计算建议的swap大小，单位为MB
+if [ "$current_swap" != "0" ]; then
+    swap=$(echo "($mem * 1.5 + $current_swap)/1" | bc)
+else
+    swap=$(echo "($mem * 1.5 + 424.5)/1" | bc)
+fi
+
+# 对建议的swap大小进行四舍五入，并将结果转换为整数
+swap=$(printf "%.0f" "$swap")
+
+# 如果当前swap分区的大小小于建议的大小，则提示需要设置更大的swap分区
+if [ "$current_swap" -lt "$swap" ]; then
+    echo "如果运行的服务较多推荐设置在$swap MB左右。"
+fi
+
+# 如果当前可用内存的大小小于建议的大小，则提示需要添加更多的内存
+if [ "$mem" -lt "$swap" ]; then
+    add_mem=$((swap - mem))
+    echo "当前可用内存大小为$mem MB，建议添加$add_mem MB的内存以达到最佳能效。"
+fi
+
 if grep -q btrfs /etc/fstab; then
     # 循环读取交换分区大小，直到输入有效的数字
     while true; do
-        echo -ne "\e[33m设置 btrfs 文件系统的交换分区大小（单位：MB）：\e[0m"
+        echo -ne "\e[33m设置 btrfs 文件系统的交换分区大小（另一半为zram0，单位：MB）：\e[0m"
         read swap_size
         
         # 检查输入是否包含删除字符
