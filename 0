@@ -64,6 +64,10 @@ if swapon --show | grep -q /swapfile; then
     done
 fi
 
+#删除zram0
+sudo swapoff /dev/zram0 &&
+sudo zramctl -r /dev/zram0
+
 # 获取当前swap分区的大小，单位为MB
 current_swap=$(sudo swapon --show | awk '/\/dev\/zram/ {print $3}' | sed 's/M//')
 
@@ -132,8 +136,6 @@ if grep -q btrfs /etc/fstab; then
     sleep 2 &&
     chmod 600 /swapfile &&
     mkswap /swapfile &&
-    sudo swapoff /dev/zram0 &&
-    sudo zramctl -r /dev/zram0
     modprobe zram
     zram_dev=$(zramctl --find --size $SIZE1)
     mkswap $zram_dev
