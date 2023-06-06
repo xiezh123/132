@@ -130,6 +130,41 @@ else
   echo "已存在 swap 分区的项在 /etc/fstab 中，将不再执行添加命令"
 fi
 
+echo '#!/bin/bash
+
+# 关闭 zram0 交换分区
+sudo swapoff /dev/zram0
+sudo zramctl -r /dev/zram0
+
+# 加载 zram 模块
+sudo modprobe zram
+
+# 获取 /swapfile 文件的大小
+swapfile_size=$(sudo du -h /swapfile | awk '\''{print $1}'\'')
+
+# 创建新的 zram0 交换分区
+zram_dev=$(sudo zramctl --find --size $swapfile_size)
+sudo mkswap $zram_dev
+sudo swapon $zram_dev' > zram.sh
+
+#移动到/etc/default并且启用自启服务
+sudo mv zram.sh /etc/default/zram.sh
+
+echo '[Unit]
+Description=Setup Zram swap
+
+[Service]
+ExecStart=/etc/default/zram.sh
+
+[Install]
+WantedBy=multi-user.target' | sudo tee /etc/systemd/system/zram.service
+
+sudo systemctl daemon-reload
+
+sudo systemctl enable zram.service
+
+sudo systemctl status zram.service  # 查看服务状态
+
 # 更改软件源为阿里源并更新必要的软件包
 echo "使用阿里源更新"
 echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
