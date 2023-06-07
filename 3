@@ -85,11 +85,11 @@ def main():
     print_containers(containers)
     print_images(images)
 
-    print("使用方法：q1 启动容器1，s2 停止容器2，r3 重启容器3，d4 删除容器4，i5 镜像删除容器5，r 刷新容器状态，exit 退出脚本")
+    print("使用方法：q1 启动容器1，s2 停止容器2，r3 重启容器3，d4 删除容器4，i5 镜像删除容器5，r 刷新容器状态，x 退出脚本")
 
     while True:
         input_str = input("请输入操作命令：")
-        if input_str == "exit":
+        if input_str == "x":
             break
         elif input_str == "r":
             containers = get_containers()
