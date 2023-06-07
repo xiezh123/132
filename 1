@@ -306,12 +306,12 @@ elif [ "$option" == "2" ]; then
     sudo rm /usr/local/bin/x' > Desktop.sh
     sleep 2
     sudo chmod +x /root/Desktop.sh
-    sudo chmod +x /usr/local/bin/x
     # 定义文件路径
     FILE_PATH="/usr/local/bin/x"
     FILE="screen -d -r Desktop"
     # 创建文件并写入命令
     echo "$FILE" > "$FILE_PATH"
+    sudo chmod +x /usr/local/bin/x
     #新建窗口
     screen -dmS Desktop bash -c "bash /root/Desktop.sh"
     sleep 2
