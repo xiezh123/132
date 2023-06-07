@@ -1,72 +1,129 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-# 提示用户确认操作
-echo "在执行脚本前，最好将内存卡格式化成和系统一样的文件格式，然后允许以读写模式挂载"
-read -p "是否继续执行？（y/n）" choice
+import subprocess
+import random
 
-# 如果用户选择 "n"，退出脚本
-if [[ $choice =~ ^[Nn]$ ]]; then
-  echo "脚本已退出。"
-  exit
-fi
+# 获取所有容器信息
+def get_containers():
+    cmd = "docker ps -a --format '{{.Names}}'"
+    output = subprocess.check_output(cmd, shell=True)
+    containers = output.decode().strip().split('\n')
+    return containers
 
-# 获取用户输入的目录
-while true; do
-  echo -n "请输入想要复制到的目录路径，比如/mnt: "
-  read target_directory
+# 获取所有镜像信息
+def get_images():
+    cmd = "docker images --format '{{.Repository}}:{{.Tag}}'"
+    output = subprocess.check_output(cmd, shell=True)
+    images = output.decode().strip().split('\n')
+    return images
 
-  # 检查输入的目录是否存在
-  if [ ! -d "$target_directory" ]; then
-    echo "输入的目录路径不存在，请重新输入。"
-  else
-    break
-  fi
-done
+# 获取容器状态（中文）
+def get_container_status(container):
+    cmd = f"docker inspect --format='{{{{.State.Status}}}}' {container}"
+    output = subprocess.check_output(cmd, shell=True)
+    status = output.decode().strip()
+    if status == "created":
+        status = "已创建"
+    elif status == "restarting":
+        status = "重启中"
+    elif status == "running":
+        status = "运行中"
+    elif status == "paused":
+        status = "已暂停"
+    elif status == "exited":
+        status = "已退出"
+    elif status == "dead":
+        status = "已停止"
+    return status
 
-# 停止 Docker 服务
-echo "正在停止 Docker 服务..."
-sudo service docker stop
-echo "Docker 服务已停止。"
+# 获取随机颜色
+def get_random_color():
+    colors = ["\033[1;31m", "\033[1;32m", "\033[1;33m", "\033[1;34m", "\033[1;35m", "\033[1;36m"]
+    return random.choice(colors)
 
-# 取消 Docker 开机自启服务
-echo "正在取消 Docker 开机自启服务..."
-sleep 2
-sudo systemctl disable docker
-echo "已取消 Docker 开机自启服务。"
+# 打印容器信息
+def print_containers(containers):
+    for i, container in enumerate(containers):
+        status = get_container_status(container)
+        color = get_random_color()
+        print(f"容器 {i+1}：{color}{container}\033[0m ({status})")
 
-# 挂载目标磁盘
-echo "正在挂载目标磁盘..."
-sleep 2
-sudo mount /dev/sda1 /mnt && sleep 2
-sudo mount -o remount,rw /dev/sda1 /mnt && sleep 3
-echo "目标磁盘已挂载。"
+# 打印镜像信息
+def print_images(images):
+    for i, image in enumerate(images):
+        print(f"镜像 {i+1}：{image}")
 
-# 复制 Docker 数据目录到目标目录
-echo "正在复制 Docker 数据目录到目标目录..."
-sleep 2
-sudo rsync -a --progress /var/lib/docker/ "$target_directory/docker"
-echo "Docker 数据目录已成功复制到目标目录。"
+# 启动容器
+def start_container(container):
+    cmd = f"docker start {container}"
+    subprocess.call(cmd, shell=True)
 
-# 删除原有 Docker 数据目录
-echo "正在删除原有 Docker 数据目录..."
-sudo rm -rf /var/lib/docker
-echo "原有 Docker 数据目录已成功删除。"
+# 停止容器
+def stop_container(container):
+    cmd = f"docker stop {container}"
+    subprocess.call(cmd, shell=True)
 
-# 创建软链接
-echo "正在创建软链接..."
-sleep 1
-sudo ln -s "$target_directory/docker" /var/lib/
-echo "软链接已成功创建。"
+# 重启容器
+def restart_container(container):
+    cmd = f"docker restart {container}"
+    subprocess.call(cmd, shell=True)
 
-# 启动 Docker 服务
-echo "正在启动 Docker 服务..."
-sleep 3
-sudo service docker start
-echo "Docker 服务已成功启动。"
+# 删除容器
+def delete_container(container):
+    cmd = f"docker rm {container}"
+    subprocess.call(cmd, shell=True)
 
-# 等待 Docker 启动
-echo "正在检查 Docker 服务状态..."
-sleep 3
-sudo systemctl status docker
-echo "请查看Docker服务是否正常。"
-sudo rm /root/Quick/3
+# 删除容器镜像
+def delete_container_image(container):
+    cmd = f"docker rmi $(docker inspect -f '{{{{.Image}}}}' {container})"
+    subprocess.call(cmd, shell=True)
+
+# 主函数
+def main():
+    containers = get_containers()
+    images = get_images()
+    print_containers(containers)
+    print_images(images)
+
+    print("使用方法：q1 启动容器1，s2 停止容器2，r3 重启容器3，d4 删除容器4，i5 镜像删除容器5，r 刷新容器状态，exit 退出脚本")
+
+    while True:
+        input_str = input("请输入操作命令：")
+        if input_str == "exit":
+            break
+        elif input_str == "r":
+            containers = get_containers()
+            images = get_images()
+            print_containers(containers)
+            print_images(images)
+        elif input_str.startswith("q"):
+            index = int(input_str[1:]) - 1
+            container = containers[index]
+            start_container(container)
+        elif input_str.startswith("s"):
+            index = int(input_str[1:]) - 1
+            container = containers[index]
+            stop_container(container)
+        elif input_str.startswith("r"):
+            index = int(input_str[1:]) - 1
+            container = containers[index]
+            restart_container(container)
+        elif input_str.startswith("d"):
+            index = int(input_str[1:]) - 1
+            container = containers[index]
+            delete_container(container)
+        elif input_str.startswith("i"):
+            index = int(input_str[1:]) - 1
+            container = containers[index]
+            delete_container_image(container)
+        else:
+            print("无效的命令，请重新输入！")
+            continue
+
+        containers = get_containers()
+        images = get_images()
+        print_containers(containers)
+        print_images(images)
+
+if __name__ == "__main__":
+    main()
