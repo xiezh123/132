@@ -270,6 +270,8 @@ if [ -d /root/132 ]; then
   # 移动文件
   sudo mv /root/132/1 /usr/local/bin/z
   sudo chmod +x /usr/local/bin/z
+  sudo mv /root/132/3 /usr/local/bin/d
+  sudo chmod +x /usr/local/bin/d
   echo "文件 /root/132/1 已移动到 /usr/local/bin/z，并赋予可执行权限。"
 else
   echo "目录 /root/132 不存在。"
