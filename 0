@@ -28,8 +28,8 @@ if [ ! -f "$CONFIG_FILE" ]; then
     if sudo sh -c "echo '$ip_list' >> /etc/hosts"; then
       echo "IP 地址和域名...已经成功添加到 hosts 文件中。"
       ip_address=$(ip addr show wlan0 | grep 'inet ' | awk '{print $2}' | cut -d '/' -f 1)
-      echo -e "\033[33m更新（大小1G+，操作不可逆）过程可能会断开连接，绿色LED会长亮后闪烁，尝试安装Docker后压缩直至重启，重启后LED会恢复为默认状态\033[0m"
-      echo -e "\033[31m如果无法连接且红灯长时间不闪烁就拔了重新尝试，建议使用WIFI连接 IP：\033[32m$ip_address  \033[0m\033[31m。\033[31m如果重新连接可以输入 \033[32m x \033[31m 回车以返回会话\033[0m"
+      echo -e "\033[33m更新大小1G+，操作不可逆，绿色LED会长亮后闪烁，尝试安装Docker后压缩直至重启，重启后LED会恢复为默认状态\033[0m"
+      echo -e "\033[31m如果无法连接且红灯长时间不闪烁就拔了重新尝试，建议使用WIFI连接 IP：\033[32m$ip_address  \033[0m\033[31m。\033[31m更过程中断开连接可以输入 \033[32m x \033[31m 返回会话\033[0m"
     else
       echo "添加 IP 地址和域名到 hosts 文件失败。"
     fi
