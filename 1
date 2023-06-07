@@ -26,6 +26,19 @@ else
    fi
 fi
 
+hour=$(date +%H)
+
+if ! pgrep docker >/dev/null; then
+    echo "Docker未运行。正在启动Docker..."
+    sudo systemctl start docker
+elif ((hour >= 5 && hour < 12)); then
+    echo "早上好！欢迎使用脚本！"
+elif ((hour >= 12 && hour < 18)); then
+    echo "下午好！欢迎使用脚本！"
+else
+    echo "晚上好！欢迎使用脚本！"
+fi
+
 echo "请选择要执行的操作："
 echo "1. 安装工具"
 echo "2. 其他命令"
