@@ -125,7 +125,7 @@ if [ "$option" == "1" ]; then
         ## 执行安装命令
         docker pull whyour/qinglong:debian && sleep 2
         docker run -dit \
-        -v $PWD/ql:/ql/data \
+        -v /srv/ql:/ql/data \
         -p 5700:5700 \
         --name qinglong \
         --hostname qinglong \
@@ -135,7 +135,7 @@ if [ "$option" == "1" ]; then
         echo "安装正式版..."
         ## 执行安装命令
         docker run -dit \
-        -v $PWD/ql:/ql/data \
+        -v /srv/ql:/ql/data \
         -p 5700:5700 \
         --name qinglong \
         --hostname qinglong \
@@ -145,14 +145,14 @@ if [ "$option" == "1" ]; then
         echo "安装 2.10.13 稳定版..."
         ## 执行安装命令
         docker run -dit \
-        -v /root/ql/config:/ql/config \
-        -v /root/ql/log:/ql/log \
-        -v /root/ql/db:/ql/db \
-        -v /root/ql/scripts:/ql/scripts \
-        -v /root/ql/jbot:/ql/jbot \
-        -v /root/ql/repo:/ql/repo \
-        -v /root/ql/ninja:/ql/ninja \
-        -v /root/ql/raw:/ql/raw \
+        -v /srv/ql/config:/ql/config \
+        -v /srv/ql/log:/ql/log \
+        -v /srv/ql/db:/ql/db \
+        -v /srv/ql/scripts:/ql/scripts \
+        -v /srv/ql/jbot:/ql/jbot \
+        -v /srv/ql/repo:/ql/repo \
+        -v /srv/ql/ninja:/ql/ninja \
+        -v /srv/ql/raw:/ql/raw \
         -p 5960:5700 \
         -p 5701:5701 \
         -e ENABLE_HANGUP=true \
@@ -188,7 +188,7 @@ if [ "$option" == "1" ]; then
     curl -fsSL https://get.casaos.io | sudo bash
   elif [ "$install_option" == "h" ]; then
     echo "安装qiandao,IP:8923"
-    docker run --restart=always -d --name qiandao -p 8923:80 -v $(pwd)/qiandao/config:/usr/src/app/config a76yyyy/qiandao:lite-latest
+    docker run --restart=always -d --name qiandao -p 8923:80 -v /srv/qiandao/config:/usr/src/app/config a76yyyy/qiandao:lite-latest
   elif [ "$install_option" == "i" ]; then
     echo "安装网易云音乐解灰,代理端口6666"
     # athr=nondanee && img=unblockneteasemusic && \
