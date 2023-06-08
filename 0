@@ -265,8 +265,7 @@ for ((attempt=1; attempt<=max_attempts; attempt++)); do
 done
 
 #创建docker数据映射目录
-sudo mkdir -p /root/docker
-chmod -R 777 /root/docker
+ln -s /srv /root/容器映射目录
 
 # 检查目录是否存在
 if [ -d /root/132 ]; then
