@@ -264,9 +264,6 @@ for ((attempt=1; attempt<=max_attempts; attempt++)); do
   fi
 done
 
-#创建docker数据映射目录
-ln -s /srv /root/容器映射目录
-
 # 检查目录是否存在
 if [ -d /root/132 ]; then
   echo "目录 /root/132 存在。"
