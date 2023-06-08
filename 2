@@ -106,5 +106,7 @@ sudo rm -rf /root/132
 sudo rm -rf /etc/docker
 rm -rf /root/*
 sleep 1
+#创建docker数据映射目录
+ln -s /srv /root/容器映射目录
 # Reboot the system
 /sbin/reboot
