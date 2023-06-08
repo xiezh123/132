@@ -100,7 +100,7 @@ fi
 # 如果当前可用内存的大小小于建议的大小，则提示需要添加更多的内存
 if [ "$mem" -lt "$swap" ]; then
     add_mem=$((swap - mem))
-    echo "当前可用内存大小为$mem MB，建议添加$add_mem MB的内存以达到最佳能效。"
+    echo "当前可用内存大小为$mem MB，轻量使用建议添加$add_mem MB的内存以达到最佳能效。"
 fi
 
 if grep -q btrfs /etc/fstab; then
