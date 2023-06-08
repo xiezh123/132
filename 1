@@ -118,6 +118,8 @@ if [ "$option" == "1" ]; then
     echo "2. 安装正式版"
     echo "3. 安装 2.10.13 稳定版"
     echo "4. 进入容器"
+    source_dir="/srv/ql/scripts"
+    target_dir="/root/QL/js"
     read panel_option
 
     if [ "$panel_option" == "1" ]; then
@@ -130,7 +132,8 @@ if [ "$option" == "1" ]; then
         --name qinglong \
         --hostname qinglong \
         --restart always \
-        whyour/qinglong:debian
+        whyour/qinglong:debian &&
+        ln -s "$source_dir" "$target_dir"
     elif [ "$panel_option" == "2" ]; then
         echo "安装正式版..."
         ## 执行安装命令
@@ -140,7 +143,8 @@ if [ "$option" == "1" ]; then
         --name qinglong \
         --hostname qinglong \
         --restart always \
-        whyour/qinglong:latest
+        whyour/qinglong:latest &&
+        ln -s "$source_dir" "$target_dir"
     elif [ "$panel_option" == "3" ]; then
         echo "安装 2.10.13 稳定版..."
         ## 执行安装命令
@@ -161,7 +165,8 @@ if [ "$option" == "1" ]; then
         --hostname ql \
         --privileged=true \
         --restart always \
-        whyour/qinglong:2.10.13
+        whyour/qinglong:2.10.13 &&
+        ln -s "$source_dir" "$target_dir"
     elif [ "$panel_option" == "4" ]; then
         echo "进入容器，按住 Ctrl 和 PQ 退出容器，执行 ql -l check 修复面板"
         echo "2.10.13 稳定版执行 docker exec -it qinglong bash -c "$(curl -fsSL https://ghproxy.com/https://raw.githubusercontent.com/FlechazoPh/QLDependency/main/Shell/QLOneKeyDependency.sh | sh)"
