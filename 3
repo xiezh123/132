@@ -73,11 +73,6 @@ def delete_container(container):
     cmd = f"docker rm {container}"
     subprocess.call(cmd, shell=True)
 
-# 删除容器镜像
-def delete_container_image(container):
-    cmd = f"docker rmi $(docker inspect -f '{{{{.Image}}}}' {container})"
-    subprocess.call(cmd, shell=True)
-
 # 主函数
 def main():
     containers = get_containers()
@@ -85,7 +80,7 @@ def main():
     print_containers(containers)
     print_images(images)
 
-    print("使用方法：q1 启动，s1 停止，r1 重启，d1 删除，i1 镜像删除，r 刷新，x 退出")
+    print("使用方法：q1 启动，s1 停止，r1 重启，d1 删除，r 刷新，x 退出")
 
     while True:
         input_str = input("请输入操作命令：")
@@ -112,10 +107,6 @@ def main():
             index = int(input_str[1:]) - 1
             container = containers[index]
             delete_container(container)
-        elif input_str.startswith("i"):
-            index = int(input_str[1:]) - 1
-            container = containers[index]
-            delete_container_image(container)
         else:
             print("无效的命令，请重新输入！")
             continue
