@@ -195,6 +195,138 @@ PERCENT=10
 #交换分区优先级
 PRIORITY=300' > zramswap
 
+echo '#!/bin/bash
+
+# 定义恢复备份文件的函数
+function delete_backup_files {
+  local backup_dir=$1
+
+  # 提示用户是否删除文件
+  echo "您是否要删除备份文件？（按下回车键删除，否则跳过）"
+  read -t 6 -n 1 response
+
+  # 检查用户的响应
+  if [ "$response" == "" ]; then
+    # 如果用户按下回车键，则删除文件
+    sudo rm -f $backup_dir/docker.tar $backup_dir/docker.tar.xz
+    echo "文件已成功删除。"
+  else
+    # 如果用户没有按下回车键，则跳过删除操作
+    echo "文件未被删除。"
+  fi
+  
+  target_dir="/root/青龙脚本"
+  source_dir="/srv/ql/scripts"
+  
+  if [ ! -L "$target_dir" ]; then
+    echo "软链接不存在，正在创建..."
+    ln -s "$source_dir" "$target_dir"
+    echo "已创建"
+  else
+    echo "软链接已存在"
+  fi
+
+  #提示
+  sudo systemctl start docker
+  echo "容器在恢复过程中可能会轻微卡顿"
+  sleep 10
+  top
+}
+
+# 询问用户备份/恢复操作
+echo "请选择您要进行的操作:"
+echo "1. 备份 /var/lib/docker 和 /srv 目录"
+echo "2. 恢复 /var/lib/docker 和 /srv 目录"
+read -p "请输入操作编号(1/2): " action
+
+# 备份操作
+if [ "$action" == "1" ]; then
+    # 询问用户要备份到哪个目录
+    read -p "请输入保存备份文件的路径: " backup_dir
+
+    while [ ! -d "$backup_dir" ]; do
+      echo "路径不存在或不是目录，请重新输入。"
+      read -p "请输入保存备份文件的路径: " backup_dir
+    done
+
+    # 如果备份目录不存在，则创建目录
+    sudo mkdir -p "$backup_dir"
+    echo "正在停止docker容器"
+    sudo docker stop $(sudo docker ps -aq)
+    sudo systemctl stop docker
+
+    # 检查 /var/lib/docker 和 /srv 目录是否都存在
+    if [[ -d /var/lib/docker ]] && [[ -d /srv ]]; then
+        # 询问用户要使用哪种压缩方法
+        read -p "请选择压缩方法 (gz/xz): " compression_method
+
+        # 根据用户选择的压缩方法进行备份
+        if [ "$compression_method" == "gz" ]; then
+            # 使用 tar 命令将 /var/lib/docker 和 /srv 目录压缩为 tar 格式的文件，并使用 pv 命令显示进度
+            backup_file="$backup_dir/docker.tar"
+            sudo tar -czf - /var/lib/docker /srv | pv -q -L 10M | sudo dd of="$backup_file" status=progress
+            echo "已备份 /var/lib/docker 和 /srv 目录到 $backup_file 中"
+
+        elif [ "$compression_method" == "xz" ]; then
+            # 使用 tar 和 xz 命令将 /var/lib/docker 和 /srv 目录压缩为 tar.xz 格式的文件，并使用 pv 命令显示进度
+            backup_file="$backup_dir/docker.tar.xz"
+            sudo tar -cJf - -C /var/lib "$(basename /var/lib/docker)" -C / srv | pv -q -L 10M | sudo dd of="$backup_file" status=progress
+            echo "已备份 /var/lib/docker 和 /srv 目录到 $backup_file 中"
+
+        else
+            # 如果用户输入了无效的压缩方法，则提示错误信息
+            echo "无效的压缩方法"
+        fi
+
+        echo "启动 Docker中"
+        sudo systemctl start docker
+
+    else
+        echo "/var/lib/docker 或 /srv 目录不存在"
+    fi
+
+# 恢复操作
+elif [ "$action" == "2" ]; then
+    # 询问用户从哪个备份目录中恢复
+    read -p "请输入包含备份文件的路径: " backup_dir
+
+    while [ ! -d "$backup_dir" ]; do
+      echo "路径不存在或不是目录，请重新输入。"
+      read -p "请输入保存备份文件的路径: " backup_dir
+    done
+
+    # 检查备份目录中是否存在 docker.tar 或 docker.tar.xz 文件
+    if [[ -f "$backup_dir/docker.tar" ]] || [[ -f "$backup_dir/docker.tar.xz" ]]; then
+        # 停止 Docker
+        echo "停止docker中"
+        sudo systemctl stop docker
+
+        # 解压缩 /var/lib/docker 目录，并使用 pv 命令显示进度
+        if [[ -f "$backup_dir/docker.tar" ]]; then
+            echo "正在恢复 /var/lib/docker 目录..."
+            sudo dd if="$backup_dir/docker.tar" status=progress | pv -q -L 10M | sudo tar -zxvf - -C /
+        elif [[ -f "$backup_dir/docker.tar.xz" ]]; then
+            echo "正在恢复 /var/lib/docker 目录..."
+            sudo dd if="$backup_dir/docker.tar.xz" status=progress | pv -q -L 10M | sudo tar -xJf - -C /
+        fi
+
+        echo "已恢复 /var/lib/docker 目录"
+        # 询问用户是否删除备份文件
+        delete_backup_files $backup_dir
+        
+    else
+        echo "$backup_dir/docker.tar 或 $backup_dir/docker.tar.xz 文件不存在"
+    fi
+
+# 无效操作
+else
+    echo "无效的操作编号"
+fi
+
+' > /usr/local/bin/b
+
+chmod +x /usr/local/bin/b
+
 #移动到/etc/default并且启用自启服务
 sudo cp /etc/default/zramswap /etc/default/zramswap.bak
 sudo rm -f /etc/default/zramswap
