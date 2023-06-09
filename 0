@@ -222,6 +222,29 @@ sudo systemctl enable zram.service
 
 #sudo systemctl status zram.service  # 查看服务状态
 
+# 检查/etc/fstab文件中是否有包含关键字btrfs的行
+if grep -q 'btrfs' /etc/fstab; then
+  # 如果是Btrfs文件系统，则创建systemd服务
+  echo '[Unit]
+  Description=Defragment root btrfs filesystem when memory low
+  After=local-fs.target
+
+  [Service]
+  Type=oneshot
+  ExecStart=/bin/bash -c "free | awk '\''/^Mem/ {exit ($7>800000)}'\''; if [ $? -eq 1 ]; then /usr/bin/screen -dmS btrfs bash -c '\''btrfs filesystem defragment -r -v -czstd /'\''; fi"
+  User=root
+
+  [Install]
+  WantedBy=multi-user.target' | sudo tee /etc/systemd/system/btrfs-defragment.service > /dev/null
+
+  # 启用和启动服务
+  sudo systemctl enable btrfs-defragment.service
+  sudo systemctl start btrfs-defragment.service
+else
+  # 如果不是Btrfs文件系统，则输出一条错误信息
+  echo "不是Btrfs文件系统，跳过添加"
+fi
+
 #备份sources.list
 sudo cp /etc/apt/sources.list /etc/apt/sources.list.backup
 
