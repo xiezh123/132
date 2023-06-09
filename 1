@@ -178,6 +178,7 @@ if [ "$option" == "1" ]; then
     fi
   elif [ "$install_option" == "c" ]; then
     echo "安装1Panel面板"
+    echo "如果需要备份数据，可以将其安装在/srv目录下"
     curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh -o quick_start.sh && bash quick_start.sh
   elif [ "$install_option" == "d" ]; then
     echo "安装宝塔开心版，安装完成后终端执行<bt>自行更改"
