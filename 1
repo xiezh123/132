@@ -75,6 +75,7 @@ if [ "$option" == "1" ]; then
   echo "g. 安装CasaOS"
   echo "h. 安装qiandao"
   echo "i. 安装UnblockNeteaseMusic"
+  echo "j. 安装Hsaa"
   read -p "请输入字母选项：" install_option
 
   if [ "$install_option" == "a" ]; then
@@ -208,7 +209,9 @@ if [ "$option" == "1" ]; then
     -p 8080:8081 \
     -s -e https://music.163.com -f 59.111.19.33 \
     -o kuwo qq
-
+  elif [ "$install_option" == "j" ]; then
+    sudo docker run -d --name hass --restart=always -p 8123:8123 -v /srv/hass:/config homeassistant/home-assistant
+    echo "端口：8123"
   else
     echo "选项不存在"
   fi
