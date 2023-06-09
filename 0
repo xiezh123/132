@@ -208,7 +208,7 @@ Description=Setup Zram swap
 After=local-fs.target
 
 [Service]
-ExecStartPre=/bin/sleep 30
+ExecStartPre=/bin/sleep 45
 ExecStart=/etc/default/zram.sh
 Type=oneshot
 RemainAfterExit=yes
