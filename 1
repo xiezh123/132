@@ -366,7 +366,6 @@ elif [[ "$option" == "3a" ]]; then
     *)
       # 默认情况：关闭 LED
       echo "关闭 LED"
-      sudo systemctl stop network-check.service
       echo 0 > /sys/class/leds/mmc0\:\:/brightness #红灯
       echo none > /sys/class/leds/blue\:wifi/trigger #蓝灯
       echo none > /sys/class/leds/green\:internet/trigger #绿灯
