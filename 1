@@ -360,7 +360,7 @@ elif [[ "$option" == "3a" ]]; then
       ;;
     2)
       # LED 互换
-      echo timer > /sys/class/leds/blue\:wifi/trigger
+      echo heartbeat > /sys/class/leds/blue\:wifi/trigger
       echo phy0tx > /sys/class/leds/green\:internet/trigger
       ;;
     *)
