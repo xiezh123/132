@@ -396,6 +396,97 @@ systemctl daemon-reload
 # 启用服务
 systemctl enable check_dconf.service
 
+echo '#!/bin/bash
+
+# 定义LED控制函数
+led_control() {
+
+  sudo sh -c "echo phy0tx > /sys/class/leds/blue\:wifi/trigger && echo mmc0 > /sys/class/leds/mmc0\:\:/trigger"
+  
+  echo 255 > /sys/class/leds/green:internet/brightness
+  
+  sleep 3
+
+  echo 0 > /sys/class/leds/green:internet/brightness
+
+  sleep 2
+  
+  # 获取温度值
+  temp=$(cat /sys/class/thermal/thermal_zone0/temp)
+  
+  # 取头值
+  head=${temp:0:1}
+  
+  # 如果第二位大于5，则头值加1
+  if [ ${temp:1:1} -ge 5 ]; then
+    head=$((head+1))
+  fi
+  
+  # 计算循环次数和间隔时间
+  count=$head
+  interval=$((15/(count*2)))
+  
+  # 循环执行命令
+  for ((i=1; i<=$count; i++)); do
+    echo 255 > /sys/class/leds/green:internet/brightness
+    sleep $interval
+    echo 0 > /sys/class/leds/green:internet/brightness
+    sleep $interval
+  done
+  
+  # 关闭亮灯
+  echo 0 > /sys/class/leds/green:internet/brightness
+}
+
+check_led_trigger() {
+  # 检查文件内容是否为"no"
+  if grep -q "no" "/etc/dconf/jntm/led"; then
+      echo "文件已经包含\"no\"，停止代码继续运行"
+      exit 1
+  fi
+  
+  echo "绿色 LED 触发器状态不为 none，开始执行 led_control 命令..."
+  led_control
+  echo "led_control 命令执行完毕。"
+  exit 0
+}
+
+if [[ "$GREEN_TRIGGER" == "none" && "$BLUE_TRIGGER" == "none" ]]; then
+    echo "LED触发器状态为none，不进行碎片整理操作。"
+else
+    if ping -c 1 www.baidu.com > /dev/null 2>&1; then
+        echo "网络连接正常，重置指示灯"
+        check_led_trigger
+    else
+        echo "没有网络连接，执行操作"
+        sudo sh -c "echo timer > /sys/class/leds/blue\:wifi/trigger && echo 1500 > /sys/class/leds/blue\:wifi/delay_on && echo 1500 > /sys/class/leds/blue\:wifi/delay_off && echo 255 > /sys/class/leds/mmc0\:\:/brightness && echo timer > /sys/class/leds/green:internet/trigger && echo 1500 > /sys/class/leds/green\:internet/delay_on && echo 1500 > /sys/class/leds/green\:internet/delay_off"
+    fi
+fi' > /etc/dconf/jntm/LEDnetwork.sh
+
+sudo chmod +x /etc/dconf/jntm/LEDnetwork.sh
+
+# 创建服务文件
+cat << EOF > /etc/systemd/system/led.service
+[Unit]
+Description=Check network for jntm and led
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sleep 30
+ExecStart=/bin/bash /etc/dconf/jntm/LEDnetwork.sh
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 重新加载Systemd服务
+systemctl daemon-reload
+
+# 启用服务
+sudo systemctl enable led.service
+
 #备份sources.list
 sudo cp /etc/apt/sources.list /etc/apt/sources.list.backup
 
