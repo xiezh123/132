@@ -193,7 +193,7 @@ if [ "$option" == "1" ]; then
     curl -fsSL "https://alist.nn.ci/v3.sh" | bash -s install
   elif [ "$install_option" == "g" ]; then
     echo "安装CasaOS个人云,IP"
-    curl -fsSL https://get.casaos.io | sudo bash
+    wget https://get.casaos.io -O casaos.sh && bash casaos.sh
   elif [ "$install_option" == "h" ]; then
     echo "安装qiandao,IP:8923"
     docker run --restart=always -d --name qiandao -p 8923:80 -v /srv/qiandao/config:/usr/src/app/config a76yyyy/qiandao:lite-latest
