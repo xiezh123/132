@@ -354,7 +354,7 @@ sudo systemctl enable zram.service
 
 #sudo systemctl status zram.service  # 查看服务状态
 
-# 检查/etc/fstab文件中是否有包含关键字btrfs的行
+# 检查/etc/fstab文件中是否有包含关键字btrfs的行，创建低内存自动压缩服务
 if grep -q 'btrfs' /etc/fstab; then
   # 如果是Btrfs文件系统，则创建systemd服务
   echo '[Unit]
@@ -376,6 +376,25 @@ else
   # 如果不是Btrfs文件系统，则输出一条错误信息
   echo "不是Btrfs文件系统，跳过添加"
 fi
+
+# 创建标志服务文件
+cat << EOF > /etc/systemd/system/check_dconf.service
+[Unit]
+Description=Check dconf for jntm and led
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'if [ ! -d "/etc/dconf/jntm" ]; then mkdir /etc/dconf/jntm; fi; cd /etc/dconf/jntm; if [ ! -f "led" ]; then echo "删除或者更改会使led失控" > led; else led_content="$(cat led)"; if [ "$led_content" != "删除或者更改会使led失控" ]; then rm led; echo "删除或者更改会使led失控" > led; fi; fi'
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 重新加载Systemd服务
+systemctl daemon-reload
+
+# 启用服务
+systemctl enable check_dconf.service
 
 #备份sources.list
 sudo cp /etc/apt/sources.list /etc/apt/sources.list.backup
