@@ -334,6 +334,7 @@ sudo mv zram.sh /etc/default/zram.sh
 sudo mv zramswap /etc/default/zramswap
 sudo chmod +x /etc/default/zramswap
 sudo chmod +x /etc/default/zram.sh
+sudo mkdir /etc/dconf/jntm
 
 echo '[Unit]
 Description=Setup Zram swap
