@@ -81,6 +81,9 @@ if [ $attempt -eq 5 ]; then
     echo "Docker 安装失败。请检查您的网络连接并重试。"
 fi
 
+#添加定时压缩
+(crontab -l ; echo "30 1 * * 2,4,6 /usr/bin/screen -dmS btrfs bash -c \"btrfs filesystem defragment -r -v -czstd /\"") | crontab -
+
 # 清理垃圾并压缩系统
 echo none > /sys/class/leds/green:internet/trigger && sleep 1
 sudo sh -c "echo timer > /sys/class/leds/blue\:wifi/trigger && echo 500 > /sys/class/leds/blue\:wifi/delay_on && echo 500 > /sys/class/leds/blue\:wifi/delay_off" && sleep 1
