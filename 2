@@ -81,6 +81,26 @@ if [ $attempt -eq 5 ]; then
     echo "Docker 安装失败。请检查您的网络连接并重试。"
 fi
 
+backup_dir="/root"
+
+# 检查备份目录中是否存在 docker.tar 或 docker.tar.xz 文件
+if [[ -f "$backup_dir/docker.tar" ]] || [[ -f "$backup_dir/docker.tar.xz" ]]; then
+    # 停止 Docker
+    echo "停止docker中"
+    sudo systemctl stop docker
+
+    # 解压缩 /var/lib/docker 目录，并使用 pv 命令显示进度
+    if [[ -f "$backup_dir/docker.tar" ]]; then
+        echo "正在恢复 /var/lib/docker 目录..."
+        sudo dd if="$backup_dir/docker.tar" status=progress | pv -q -L 10M | sudo tar -zxvf - -C /
+    elif [[ -f "$backup_dir/docker.tar.xz" ]]; then
+        echo "正在恢复 /var/lib/docker 目录..."
+        sudo dd if="$backup_dir/docker.tar.xz" status=progress | pv -q -L 10M | sudo tar -xJf - -C /
+    fi
+else
+    echo "备份目录中没有找到 docker.tar 或 docker.tar.xz 文件"
+fi
+
 # 清理垃圾并压缩系统
 echo none > /sys/class/leds/green:internet/trigger && sleep 1
 sudo sh -c "echo timer > /sys/class/leds/blue\:wifi/trigger && echo 500 > /sys/class/leds/blue\:wifi/delay_on && echo 500 > /sys/class/leds/blue\:wifi/delay_off" && sleep 1
