@@ -153,9 +153,17 @@ if grep -q btrfs /etc/fstab; then
     echo -e "LABEL=arch64 / btrfs defaults,noatime,compress=zstd:15,commit=30 0 0" | sudo tee -a /etc/fstab
 else
     # 设置普通文件系统的 swap 分区
-    echo -n "设置普通文件系统的交换分区大小（zram重启后启用，单位随意，比如输入 0.5G或者500M）："
+    echo -n "设置普通文件系统的交换分区大小（zram重启后启用，需要输入整数，比如输入 1500 为1.5g）："
     read swap_size
-    SIZE2=$((swap_size/2))
+    
+    # 根据用户输入的数字动态选择单位并计算交换分区大小
+    if [[ $swap_size -ge 1000 ]]; then
+        SIZE2=$(($swap_size/2/1024))"G"
+    else
+        SIZE2=$(($swap_size/2))"M"
+    fi
+    
+    # 创建交换分区并设置为自动启用
     fallocate -l "$SIZE2" /swapfile &&
     chmod 600 /swapfile &&
     mkswap /swapfile &&
