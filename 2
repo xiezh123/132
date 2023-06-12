@@ -81,24 +81,18 @@ if [ $attempt -eq 5 ]; then
 fi
 
 sleep 3
-
-# 检查 Docker 是否安装并运行
+# 恢复 Docker 数据
+echo "正在检查 Docker 是否安装并运行中..."
 if command -v docker >/dev/null 2>&1 && sudo systemctl is-active --quiet docker; then
     echo "Docker 安装并运行中，可以恢复 /var/lib/docker 目录"
-    # 调用函数
-    restore_docker
-else
-    echo "Docker 未安装或未运行"
-fi
 
-function restore_docker() {
     # 备份目录路径
     backup_dir="/root"
 
     # 检查备份目录中是否存在 docker.tar 或 docker.tar.xz 文件
     if [[ -f "$backup_dir/docker.tar" ]] || [[ -f "$backup_dir/docker.tar.xz" ]]; then
         # 停止 Docker
-        echo "停止docker中"
+        echo "停止 docker 中"
         sudo systemctl stop docker
 
         # 解压缩 /var/lib/docker 目录，并使用 pv 命令显示进度
@@ -109,21 +103,24 @@ function restore_docker() {
             echo "正在恢复 /var/lib/docker 目录..."
             sudo dd if="$backup_dir/docker.tar.xz" status=progress | pv -q -L 10M | sudo tar -xJf - -C /
         fi
+
+        # 检查 /root 目录中是否存在 docker.tar 或 docker.tar.xz 文件，并删除
+        if [ -f /root/docker.tar ]; then
+            rm -f /root/docker.tar
+            echo "已删除 /root/docker.tar 文件"
+        fi
+
+        if [ -f /root/docker.tar.xz ]; then
+            rm -f /root/docker.tar.xz
+            echo "已删除 /root/docker.tar.xz 文件"
+        fi
+
     else
         echo "备份目录中没有找到 docker.tar 或 docker.tar.xz 文件"
     fi
-
-    # 检查 /root 目录中是否存在 docker.tar 或 docker.tar.xz 文件，并删除
-    if [ -f /root/docker.tar ]; then
-        rm -f /root/docker.tar
-        echo "已删除 /root/docker.tar 文件"
-    fi
-
-    if [ -f /root/docker.tar.xz ]; then
-        rm -f /root/docker.tar.xz
-        echo "已删除 /root/docker.tar.xz 文件"
-    fi
-}
+else
+    echo "Docker 未安装或未运行"
+fi
 
 # 清理垃圾并压缩系统
 echo none > /sys/class/leds/green:internet/trigger && sleep 1
