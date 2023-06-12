@@ -153,7 +153,7 @@ if grep -q btrfs /etc/fstab; then
     echo -e "LABEL=arch64 / btrfs defaults,noatime,compress=zstd:15,commit=30 0 0" | sudo tee -a /etc/fstab
 else
     # 设置普通文件系统的 swap 分区
-    echo -n "设置普通文件系统的 swap 交换分区大小（单位随意，比如0.5G/500M）："
+    echo -n "设置普通文件系统的swap交换分区大小（单位随意，比如输入 0.5G或者500M）："
     read swap_size
     fallocate -l "$swap_size" /swapfile &&
     chmod 600 /swapfile &&
