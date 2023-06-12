@@ -36,6 +36,20 @@ echo none > /sys/class/leds/green:internet/trigger && sleep 1
 echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
 
 apt upgrade -y && sleep 2
+
+# 检查根文件系统的已用空间占比
+usage_percentage=$(df -h / | awk 'NR==2 {print $5}')
+
+# 提取已用空间占比的数字部分
+usage_percentage=${usage_percentage%\%}
+
+# 如果已用空间占比超过 35%，则执行磁盘碎片整理命令
+if [[ $usage_percentage -gt 35 ]]; then
+  echo "根文件系统已用空间占比超过 35%，正在执行磁盘碎片整理..."
+  btrfs filesystem defragment -r -v -czstd /
+else
+  echo "根文件系统已用空间占比低于等于 35%，无需进行磁盘碎片整理。"
+fi
 # 安装推荐软件包
 echo "安装推荐软件包"
 apt-get install zip byobu cron btrfs-progs rsync preload pv -y && sleep 3
