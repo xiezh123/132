@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if ! ls /boot/*T* &> /dev/null; then
+if ! ls /boot/vmlinuz-5.15.0-jsbsbxjxh66+ &> /dev/null; then
     echo "脚本无法在此设备上运行"
     sudo rm /root/0
     exit 1
