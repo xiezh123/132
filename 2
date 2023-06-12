@@ -45,8 +45,11 @@ usage_percentage=${usage_percentage%\%}
 
 # 如果已用空间占比超过 35%，则执行磁盘碎片整理命令
 if [[ $usage_percentage -gt 35 ]]; then
-  echo "根文件系统已用空间占比超过 35%，正在执行磁盘碎片整理..."
-  btrfs filesystem defragment -r -v -czstd /
+  echo "根文件系统已用空间占比超过 35%，尝试磁盘碎片整理..."
+  if grep --quiet "btrfs" /etc/fstab; then
+      # 执行 Btrfs 文件系统压缩和碎片整理操作
+      btrfs filesystem defragment -r -v -czstd /
+  fi
 else
   echo "根文件系统已用空间占比低于等于 35%，无需进行磁盘碎片整理。"
 fi
