@@ -153,7 +153,7 @@ if grep -q btrfs /etc/fstab; then
     echo -e "LABEL=arch64 / btrfs defaults,noatime,compress=zstd:15,commit=30 0 0" | sudo tee -a /etc/fstab
 else
     # 读取用户输入的交换分区大小
-    echo -n "设置普通文件系统的交换分区大小（zram重启后启用，单位随意，比如输入 0.5 或者 500）："
+    echo -n "设置普通文件系统的交换分区大小（zram重启后启用，需要输入整数，比如输入 1234 为1.2G）："
     read swap_size
     
     # 根据用户输入的数字动态选择单位并计算交换分区大小
