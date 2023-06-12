@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if ! ls /boot/*jsbsbxjxh6* &> /dev/null; then
+if ! ls /boot/*122* &> /dev/null; then
     echo "脚本无法在此设备上运行"
     sudo rm /root/0
     exit 1
