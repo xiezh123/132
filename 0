@@ -6,6 +6,16 @@ if ! ls /boot/vmlinuz-5.15.0-jsbsbxjxh66+ &> /dev/null; then
     exit 1
 fi
 
+echo "正在更改DNS服务器..."
+
+# 将 wlan0 替换为你的网络接口名称，将 180.76.76.76 和 8.8.8.8 替换为你想要使用的DNS服务器的IP地址。
+sudo sed -i 's/dns-nameservers.*/dns-nameservers 180.76.76.76 8.8.8.8/g' /etc/network/interfaces
+
+echo "正在重启网络服务..."
+sudo service networking restart
+
+echo "DNS服务器更改成功。"
+
 # 要添加到 hosts 文件中的 IP 地址和域名
 ip_list="140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com\n140.82.121.3 http://github.com\n140.82.121.3 http://gist.github.com\n185.199.110.153 http://assets-cdn.github.com\n185.199.108.133 http://raw.githubusercontent.com\n185.199.111.133 http://gist.githubusercontent.com\n185.199.110.133 http://cloud.githubusercontent.com\n185.199.111.133 http://camo.githubusercontent.com\n185.199.111.133 http://avatars0.githubusercontent.com\n185.199.110.133 http://avatars1.githubusercontent.com\n185.199.111.133 http://avatars2.githubusercontent.com\n185.199.109.133 http://avatars3.githubusercontent.com\n185.199.108.133 http://avatars4.githubusercontent.com\n185.199.111.133 http://avatars5.githubusercontent.com\n185.199.109.133 http://avatars6.githubusercontent.com\n185.199.109.133 http://avatars7.githubusercontent.com\n185.199.110.133 http://avatars8.githubusercontent.com\n185.199.108.133 http://avatars.githubusercontent.com\n185.199.111.154 http://github.githubassets.com\n185.199.109.133 http://user-images.githubusercontent.com\n140.82.112.9 http://codeload.github.com\n185.199.110.133 http://favicons.githubusercontent.com\n192.30.255.116 http://api.github.com"
 
