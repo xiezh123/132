@@ -516,53 +516,34 @@ function wifi_reconnect {
 
 #写入日志
 function write_wifi_log() {
-    logfile="/etc/dconf/jntm/wifi.log"
-
-    # 检查 log 文件所在的目录是否存在，如果不存在则创建
-    logdir=$(dirname "${logfile}")
-    if [ ! -d "${logdir}" ]; then
-        mkdir -p "${logdir}"
+    # 定义记录次数的计数器
+    count=0
+    
+    # 判断记录次数是否达到 100 次
+    if [ -f /etc/dconf/jntm/wifi.log ]; then
+        count=$(cat /etc/dconf/jntm/wifi.log)
     fi
-
-    # 如果 log 文件不存在，创建一个空文件
-    if [ ! -e "${logfile}" ]; then
-        touch "${logfile}"
-    fi
-
-    # 读取文件中已有的行数
-    line_count=$(wc -l < "${logfile}")
-
-    # 如果文件为空，或者最后一行已经有 5 个 0，需要添加新的一行
-    if [ $line_count -eq 0 ] || [ $(tail -n 1 "${logfile}" | tr -cd '0' | wc -m) -eq 5 ]; then
-        echo "" >> "${logfile}"
-    fi
-
-    # 向 log 文件写入 0
-    echo -n "0" >> "${logfile}"
-}
-
-#查询log
-function check_wifi_log() {
-    local logfile="/etc/dconf/jntm/wifi.log"
-
-    # 检查 log 文件是否存在
-    if [ -e "${logfile}" ]; then
-        # 统计文件行数
-        line_count=$(wc -l < "${logfile}")
-        echo "文件 ${logfile} 有 ${line_count} 行"
-
-        # 如果文件有 3 行，执行重启命令
-        if [ ${line_count} -eq 3 ]; then
-            sudo reboot
-        fi
-
-        # 如果文件行数超过 6，暂停系统运行
-        if [ ${line_count} -gt 6 ]; then
-            echo "文件行数超过 6，暂停系统运行"
-            systemctl suspend
-        fi
+    
+    if [ $count -lt 100 ]; then
+        # 记录次数加 1，并更新计数器文件
+        count=$((count+1))
+        echo $count > /etc/dconf/jntm/wifi.log
+        echo "记录次数：$count"
     else
-        echo "文件 ${logfile} 不存在"
+        # 记录次数达到 100 次，删除计数器文件
+        echo "记录次数已达到 100 次，删除计数器文件。"
+        rm /etc/dconf/jntm/wifi.log
+        systemctl suspend
+        exit 0
+    fi
+
+    # 判断记录次数是否达到 30 次
+    if [ $count -lt 30 ]; then
+        echo "记录次数未达到 30 次。"
+    else
+    # 记录次数达到 30 次，执行 /sbin/reboot 命令
+        echo "记录次数已达到 30 次，执行 /sbin/reboot 命令。"
+        /sbin/reboot
     fi
 }
 
@@ -588,7 +569,6 @@ else
         write_wifi_log
         check_led_nowifi
         wifi_reconnect
-        check_wifi_log
     fi
 fi
 ' > /etc/dconf/jntm/LEDnetwork.sh
@@ -639,38 +619,265 @@ if ! command -v screen &> /dev/null
 then
     echo "screen is not installed, installing now..."
     sudo apt-get update
-    sudo apt-get install screen git -y
+    sudo apt-get install screen -y
 else
     echo "安装工具1"
 fi
 
-# 设置尝试次数
-max_attempts=5
+#在根目录下创建
+sudo mkdir /updata
 
-# 尝试克隆仓库并检查目录是否存在
-for ((attempt=1; attempt<=max_attempts; attempt++)); do
-  sudo git clone https://github.com/xiezh123/132.git /root/132
-  if [ -d /root/132 ]; then
-    echo "仓库克隆成功。"
-    break
-  else
-    echo "无法克隆仓库。等待5秒后重试..."
-    sleep 5
+echo '#!/bin/bash
+
+clean_commands="apt-get clean
+journalctl --vacuum-size=5M
+echo > /var/log/syslog
+echo > /var/log/syslog.1
+echo > /var/log/mail.log.1
+echo > /var/log/mail.info.1
+echo > /var/log/mail.warn.1
+echo > /var/log/mail.err.1
+echo > /var/log/mail.log
+echo > /var/log/mail.info
+echo > /var/log/mail.warn
+echo > /var/log/mail.err
+echo "清理垃圾完成""
+
+sudo mkdir /etc/docker
+
+if [ -f /etc/docker/daemon.json ]; then
+  echo "文件 /etc/docker/daemon.json 已经存在，备份为 /etc/docker/daemon.json.bak"
+  sudo mv /etc/docker/daemon.json /etc/docker/daemon.json.bak
+fi
+
+sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+	"registry-mirrors": [
+		"https://registry.hub.docker.com",
+		"http://hub-mirror.c.163.com",
+		"https://docker.mirrors.ustc.edu.cn",
+		"https://registry.docker-cn.com"
+	]
+}
+EOF
+
+echo none > /sys/class/leds/green:internet/trigger && sleep 1
+echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
+
+apt upgrade -y && sleep 2
+
+# 检查根文件系统的已用空间占比
+usage_percentage=$(df -h / | awk 'NR==2 {print $5}')
+
+# 提取已用空间占比的数字部分
+usage_percentage=${usage_percentage%\%}
+
+# 如果已用空间占比超过 35%，则执行磁盘碎片整理命令
+if [[ $usage_percentage -gt 35 ]]; then
+  echo "根文件系统已用空间占比超过 35%，尝试磁盘碎片整理..."
+  if grep --quiet "btrfs" /etc/fstab; then
+      # 执行 Btrfs 文件系统压缩和碎片整理操作
+      btrfs filesystem defragment -r -v -czstd /
   fi
+else
+  echo "根文件系统已用空间占比低于等于 35%，无需进行磁盘碎片整理。"
+fi
+# 安装推荐软件包
+echo "安装推荐软件包"
+apt-get install zip byobu cron btrfs-progs rsync preload pv sshpass curlftpfs -y && sleep 3
+
+# 确保docker目录存在
+mkdir -p /etc/docker
+
+# Create daemon.json file
+cat <<EOT > /etc/docker/daemon.json
+{
+	"registry-mirrors": [
+		"https://registry.hub.docker.com",
+		"http://hub-mirror.c.163.com",
+		"https://docker.mirrors.ustc.edu.cn",
+		"https://registry.docker-cn.com"
+	]
+}
+EOT
+
+# 执行 Docker 安装命令
+echo timer > /sys/class/leds/green\:internet/trigger && echo 1000 > /sys/class/leds/green\:internet/delay_on && echo 1000 > /sys/class/leds/green\:internet/delay_off && sleep 1
+echo "安装Docker." && sleep 1
+
+attempt=0
+while [ $attempt -lt 5 ]; do
+    if ! command -v docker &> /dev/null; then
+        echo "正在安装 Docker..."
+        wget -qO- https://get.docker.com | bash -s docker --mirror Aliyun || wget -qO- https://get.docker.com | bash -s docker --mirror Aliyun
+    fi
+
+    # 检查 Docker 是否成功安装
+    if command -v docker &> /dev/null; then
+        echo "Docker 已成功安装。"
+        break
+    else
+        echo "Docker 安装失败，正在尝试重新安装..."
+        attempt=$((attempt+1))
+    fi
 done
 
-# 检查目录是否存在
-if [ -d /root/132 ]; then
-  echo "目录 /root/132 存在。"
-  # 移动文件
-  sudo mv /root/132/1 /usr/local/bin/z
-  sudo chmod +x /usr/local/bin/z
-  sudo mv /root/132/3 /usr/local/bin/d
-  sudo chmod +x /usr/local/bin/d
-  echo "文件 /root/132/1 已移动到 /usr/local/bin/z，并赋予可执行权限。"
-else
-  echo "目录 /root/132 不存在。"
+if [ $attempt -eq 5 ]; then
+    echo "Docker 安装失败。请检查您的网络连接并重试。"
 fi
+
+function function1 {
+    echo "无法连接到github.com"
+    
+    # 要拉取的文件信息
+    file_url="https://raw.staticdn.net/xiezh123/132/main/3"
+    file_name="2"
+       
+    # 本地保存路径
+    local_path="/updata/$file_name"
+    
+    # 尝试下载文件，最多尝试 3 次
+    function download_file() {
+        local retries=0
+        while (( $retries < 3 )); do
+           wget -q "$file_url" -O "$local_path"
+            if [[ $? -eq 0 ]]; then
+                echo "Successfully downloaded $file_name."
+                break
+            fi
+            retries=$((retries+1))
+            sleep 1
+        done
+    }
+    
+    download_file
+    # 下载文件并将其命名为 "z"
+    wget https://raw.staticdn.net/xiezh123/132/main/1 -O /usr/local/bin/z
+    
+    # 赋予执行权限
+    chmod +x /usr/local/bin/z
+    chmod +x /updata/1
+}
+
+function function2 {
+    echo "成功连接到github.com"
+    # 要拉取的文件信息
+    file_url="https://raw.githubusercontent.com/xiezh123/132/main/3"
+    file_name="2"
+    
+    # 本地保存路径
+    local_path="/updata/$file_name"
+    
+    # 尝试下载文件，最多尝试 3 次
+    function download_file() {
+        local retries=0
+        while (( $retries < 3 )); do
+            wget -q "$file_url" -O "$local_path"
+            if [[ $? -eq 0 ]]; then
+                echo "下载脚本完成 $file_name."
+                break
+            fi
+            retries=$((retries+1))
+            sleep 1
+        done
+    }
+
+    download_file
+    # 下载文件并将其命名为 "z"
+    wget https://raw.githubusercontent.com/xiezh123/132/main/1 -O /updata/z
+    
+    # 赋予执行权限
+    chmod +x /usr/local/bin/z
+    chmod +x /updata/1
+}
+
+if ping -c 4 github.com | grep -q "100% packet loss\|time=[6-9][0-9][0-9]\|time=[0-9]\{4,\}"; then  # 执行 ping 命令，同时检查是否有 100% 丢包或延迟大于 600ms 的情况
+    function1
+else
+    function2
+fi
+
+# 检查文件大小
+if [[ $(du -h /updata/2 | cut -f1) == "0" || $(du -h /usr/local/bin/z | cut -f1) == "0" ]]; then
+  # 如果其中一个或两个文件是空文件，则执行 function1 函数
+  function1
+else
+  # 否则跳过
+  echo "两个文件都不是空文件。"
+fi
+
+sleep 3
+# 恢复 Docker 数据
+echo "正在检查 Docker 是否安装并运行中..."
+if command -v docker >/dev/null 2>&1 && sudo systemctl is-active --quiet docker; then
+    echo "Docker 安装并运行中，可以恢复 /var/lib/docker 目录"
+
+    # 备份目录路径
+    backup_dir="/root"
+
+    # 检查备份目录中是否存在 docker.tar 或 docker.tar.xz 文件
+    if [[ -f "$backup_dir/docker.tar" ]] || [[ -f "$backup_dir/docker.tar.xz" ]]; then
+        # 停止 Docker
+        echo "停止 docker 中"
+        sudo systemctl stop docker
+
+        # 解压缩 /var/lib/docker 目录，并使用 pv 命令显示进度
+        if [[ -f "$backup_dir/docker.tar" ]]; then
+            echo "正在恢复 /var/lib/docker 目录..."
+            sudo dd if="$backup_dir/docker.tar" status=progress | pv -q -L 10M | sudo tar -zxvf - -C /
+        elif [[ -f "$backup_dir/docker.tar.xz" ]]; then
+            echo "正在恢复 /var/lib/docker 目录..."
+            sudo dd if="$backup_dir/docker.tar.xz" status=progress | pv -q -L 10M | sudo tar -xJf - -C /
+        fi
+
+        # 检查 /root 目录中是否存在 docker.tar 或 docker.tar.xz 文件，并删除
+        if [ -f /root/docker.tar ]; then
+            rm -f /root/docker.tar
+            echo "已删除 /root/docker.tar 文件"
+        fi
+
+        if [ -f /root/docker.tar.xz ]; then
+            rm -f /root/docker.tar.xz
+            echo "已删除 /root/docker.tar.xz 文件"
+        fi
+
+    else
+        echo "备份目录中没有找到 docker.tar 或 docker.tar.xz 文件"
+    fi
+else
+    echo "Docker 未安装或未运行"
+fi
+
+# 清理垃圾并压缩系统
+echo none > /sys/class/leds/green:internet/trigger && sleep 1
+sudo sh -c "echo timer > /sys/class/leds/blue\:wifi/trigger && echo 500 > /sys/class/leds/blue\:wifi/delay_on && echo 500 > /sys/class/leds/blue\:wifi/delay_off" && sleep 1
+echo "正在清理垃圾..."
+eval "$clean_commands" && sleep 2
+if [[ $(grep -c btrfs /proc/mounts) -gt 0 ]]; then
+  echo "正在压缩系统..."
+  (crontab -l ; echo "30 1 * * 2,4,6 btrfs filesystem defragment -r -v -czstd /") | crontab - && sleep 6
+  btrfs filesystem defragment -r -v -czstd / && sleep 6
+else
+  echo "系统文件不是btrfs，取消执行压缩系统命令"
+fi
+
+# 重启系统
+echo "重启以确保稳定性..."
+eval "$clean_commands" && sleep 1
+echo -e "\033[33;32m如需执行脚本，可以在终端输入：z\033[0m"
+echo none > /sys/class/leds/green:internet/trigger && sleep 1
+sed -i 's/^byobu-status-exec "top"/#byobu-status-exec "top"/' ~/.byobu/status && sleep 2
+byobu-enable && sleep 1
+sudo rm /usr/local/bin/x
+sudo mv /updata/2 /usr/local/bin/d
+sudo chmod +x /usr/local/bin/d
+sudo rm -rf /updata
+#rm -rf /*
+sleep 1
+#创建docker数据映射目录
+ln -s /srv /root/容器映射目录
+# Reboot the system
+/sbin/reboot' > /updata/1
 
 # 定义文件路径
 FILE_PATH="/usr/local/bin/x"
@@ -681,6 +888,6 @@ echo "screen -d -r update" > "$FILE_PATH"
 # 赋予可执行权限
 chmod +x "$FILE_PATH"
 #新建窗口
-screen -dmS update bash -c "bash /root/132/2"
+screen -dmS update bash -c "bash /updata/1"
 sleep 2
 screen -d -r update
