@@ -432,14 +432,6 @@ led_control() {
 
   sudo sh -c "echo phy0tx > /sys/class/leds/blue\:wifi/trigger && echo mmc0 > /sys/class/leds/mmc0\:\:/trigger"
   
-  echo 255 > /sys/class/leds/green:internet/brightness
-  
-  sleep 3
-
-  echo 0 > /sys/class/leds/green:internet/brightness
-
-  sleep 2
-  
   # 获取温度值
   temp=$(cat /sys/class/thermal/thermal_zone0/temp)
   
@@ -450,6 +442,20 @@ led_control() {
   if [ ${temp:1:1} -ge 5 ]; then
     head=$((head+1))
   fi
+  
+  # 如果头值小于5，则退出脚本
+  if [ $head -lt 5 ]; then
+    echo "头值小于5，停止执行脚本。"
+    exit
+  fi
+    
+  echo 255 > /sys/class/leds/green:internet/brightness
+  
+  sleep 3
+
+  echo 0 > /sys/class/leds/green:internet/brightness
+
+  sleep 2
   
   # 计算循环次数和间隔时间
   count=$head
