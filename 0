@@ -9,7 +9,7 @@ fi
 function skip_swap_setup {
   
   # 要添加到 hosts 文件中的 IP 地址和域名
-  ip_list="140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com\n140.82.121.3 http://github.com\n140.82.121.3 http://gist.github.com\n185.199.110.153 http://assets-cdn.github.com\n185.199.108.133 http://raw.githubusercontent.com\n185.199.111.133 http://gist.githubusercontent.com\n185.199.110.133 http://cloud.githubusercontent.com\n185.199.111.133 http://camo.githubusercontent.com\n185.199.111.133 http://avatars0.githubusercontent.com\n185.199.110.133 http://avatars1.githubusercontent.com\n185.199.111.133 http://avatars2.githubusercontent.com\n185.199.109.133 http://avatars3.githubusercontent.com\n185.199.108.133 http://avatars4.githubusercontent.com\n185.199.111.133 http://avatars5.githubusercontent.com\n185.199.109.133 http://avatars6.githubusercontent.com\n185.199.109.133 http://avatars7.githubusercontent.com\n185.199.110.133 http://avatars8.githubusercontent.com\n185.199.108.133 http://avatars.githubusercontent.com\n185.199.111.154 http://github.githubassets.com\n185.199.109.133 http://user-images.githubusercontent.com\n140.82.112.9 http://codeload.github.com\n185.199.110.133 http://favicons.githubusercontent.com\n192.30.255.116 http://api.github.com"
+  ip_list="157.148.69.80 www.baidu.com\n182.89.194.244 mirrors.aliyun.com\n140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com\n140.82.121.3 http://github.com\n140.82.121.3 http://gist.github.com\n185.199.110.153 http://assets-cdn.github.com\n185.199.108.133 http://raw.githubusercontent.com\n185.199.111.133 http://gist.githubusercontent.com\n185.199.110.133 http://cloud.githubusercontent.com\n185.199.111.133 http://camo.githubusercontent.com\n185.199.111.133 http://avatars0.githubusercontent.com\n185.199.110.133 http://avatars1.githubusercontent.com\n185.199.111.133 http://avatars2.githubusercontent.com\n185.199.109.133 http://avatars3.githubusercontent.com\n185.199.108.133 http://avatars4.githubusercontent.com\n185.199.111.133 http://avatars5.githubusercontent.com\n185.199.109.133 http://avatars6.githubusercontent.com\n185.199.109.133 http://avatars7.githubusercontent.com\n185.199.110.133 http://avatars8.githubusercontent.com\n185.199.108.133 http://avatars.githubusercontent.com\n185.199.111.154 http://github.githubassets.com\n185.199.109.133 http://user-images.githubusercontent.com\n140.82.112.9 http://codeload.github.com\n185.199.110.133 http://favicons.githubusercontent.com\n192.30.255.116 http://api.github.com"
   
   echo "正在更改DNS服务器..."
   echo "nameserver 180.76.76.76" | sudo tee -a /etc/resolv.conf
@@ -18,9 +18,6 @@ function skip_swap_setup {
   echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
   echo "nameserver 223.5.5.5" | sudo tee -a /etc/resolv.conf
   echo "nameserver 223.6.6.6" | sudo tee -a /etc/resolv.conf
-
-  echo "正在重启网络服务..."
-  sudo service networking restart
 
   # Add /root to the PATH environment variable
   echo 'export PATH="$PATH:/root"' >> ~/.bashrc
@@ -48,12 +45,15 @@ function skip_swap_setup {
         echo "IP 地址和域名...已经成功添加到 hosts 文件中。"
         ip_address=$(ip addr show wlan0 | grep 'inet ' | awk '{print $2}' | cut -d '/' -f 1)
         echo -e "\033[33m更新大小1G+，操作不可逆，绿色LED会长亮后闪烁，尝试安装Docker后压缩直至重启，重启后LED会恢复为默认状态\033[0m"
-        echo -e "\e[33m如需恢复备份文件请在安装Docker之前将docker.tar(xz)文件上传完成\e[0m"
+        echo -e "\e[33m如需恢复备份文件请在安装Docker之前将docker.tar(xz)文件上传完成(/root目录）\e[0m"
         echo -e "\033[31m如果无法连接且红灯长时间不闪烁就拔了重新尝试，建议使用WIFI连接 IP：\033[32m$ip_address  \033[0m\033[31m。\033[31m更过程中断开连接可以输入 \033[32m x \033[31m 返回会话\033[0m"
       else
         echo "添加 IP 地址和域名到 hosts 文件失败。"
       fi
     fi
+
+    echo "正在重启网络服务..."
+    sudo service networking restart
   
     # 创建鸡你太美文件
     if touch "$CONFIG_FILE"; then
@@ -524,9 +524,9 @@ function wifi_reconnect {
     if [ $? -ne 0 ]; then
         echo "WiFi连接已断开，正在尝试重新连接..."
         nmcli radio wifi off
-        sleep 8
+        sleep 15
         nmcli radio wifi on
-        sleep 8
+        sleep 30
         ping -c 3 www.baidu.com > /dev/null 2>&1
         if [ $? -eq 0 ]; then
             echo "WiFi重新连接成功。"
@@ -554,18 +554,17 @@ function write_wifi_log() {
     else
         # 记录次数达到 100 次，删除计数器文件
         echo "记录次数已达到 100 次，删除计数器文件。"
-        rm /etc/dconf/jntm/wifi.log
+        sudo rm /etc/dconf/jntm/wifi.log
         systemctl suspend
         exit 0
     fi
 
-    # 判断记录次数是否达到 30 次
-    if [ $count -lt 30 ]; then
-        echo "记录次数未达到 30 次。"
-    else
-    # 记录次数达到 30 次，执行 /sbin/reboot 命令
+    # 判断记录次数是否等于 30 次
+    if [ $count -eq 30 ]; then
         echo "记录次数已达到 30 次，执行 /sbin/reboot 命令。"
         /sbin/reboot
+    else
+        echo "跳过。"
     fi
 }
 
