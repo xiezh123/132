@@ -6,193 +6,209 @@ if ! ls /boot/vmlinuz-5.15.0-jsbsbxjxh66+ &> /dev/null; then
     exit 1
 fi
 
-echo "正在更改DNS服务器..."
+function skip_swap_setup {
+  
+  # 要添加到 hosts 文件中的 IP 地址和域名
+  ip_list="140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com\n140.82.121.3 http://github.com\n140.82.121.3 http://gist.github.com\n185.199.110.153 http://assets-cdn.github.com\n185.199.108.133 http://raw.githubusercontent.com\n185.199.111.133 http://gist.githubusercontent.com\n185.199.110.133 http://cloud.githubusercontent.com\n185.199.111.133 http://camo.githubusercontent.com\n185.199.111.133 http://avatars0.githubusercontent.com\n185.199.110.133 http://avatars1.githubusercontent.com\n185.199.111.133 http://avatars2.githubusercontent.com\n185.199.109.133 http://avatars3.githubusercontent.com\n185.199.108.133 http://avatars4.githubusercontent.com\n185.199.111.133 http://avatars5.githubusercontent.com\n185.199.109.133 http://avatars6.githubusercontent.com\n185.199.109.133 http://avatars7.githubusercontent.com\n185.199.110.133 http://avatars8.githubusercontent.com\n185.199.108.133 http://avatars.githubusercontent.com\n185.199.111.154 http://github.githubassets.com\n185.199.109.133 http://user-images.githubusercontent.com\n140.82.112.9 http://codeload.github.com\n185.199.110.133 http://favicons.githubusercontent.com\n192.30.255.116 http://api.github.com"
+  
+  echo "正在更改DNS服务器..."
+  echo "nameserver 180.76.76.76" | sudo tee -a /etc/resolv.conf
+  echo "nameserver 180.76.76.67" | sudo tee -a /etc/resolv.conf
+  echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
+  echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
+  echo "nameserver 223.5.5.5" | sudo tee -a /etc/resolv.conf
+  echo "nameserver 223.6.6.6" | sudo tee -a /etc/resolv.conf
 
-# 将 wlan0 替换为你的网络接口名称，将 180.76.76.76 和 8.8.8.8 替换为你想要使用的DNS服务器的IP地址。
-sudo sed -i 's/dns-nameservers.*/dns-nameservers 180.76.76.76 8.8.8.8/g' /etc/network/interfaces
+  echo "正在重启网络服务..."
+  sudo service networking restart
 
-echo "正在重启网络服务..."
-sudo service networking restart
+  # Add /root to the PATH environment variable
+  echo 'export PATH="$PATH:/root"' >> ~/.bashrc
 
-echo "DNS服务器更改成功。"
+  # Reload the updated .bashrc file
+  source ~/.bashrc
 
-# 要添加到 hosts 文件中的 IP 地址和域名
-ip_list="140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com\n140.82.121.3 http://github.com\n140.82.121.3 http://gist.github.com\n185.199.110.153 http://assets-cdn.github.com\n185.199.108.133 http://raw.githubusercontent.com\n185.199.111.133 http://gist.githubusercontent.com\n185.199.110.133 http://cloud.githubusercontent.com\n185.199.111.133 http://camo.githubusercontent.com\n185.199.111.133 http://avatars0.githubusercontent.com\n185.199.110.133 http://avatars1.githubusercontent.com\n185.199.111.133 http://avatars2.githubusercontent.com\n185.199.109.133 http://avatars3.githubusercontent.com\n185.199.108.133 http://avatars4.githubusercontent.com\n185.199.111.133 http://avatars5.githubusercontent.com\n185.199.109.133 http://avatars6.githubusercontent.com\n185.199.109.133 http://avatars7.githubusercontent.com\n185.199.110.133 http://avatars8.githubusercontent.com\n185.199.108.133 http://avatars.githubusercontent.com\n185.199.111.154 http://github.githubassets.com\n185.199.109.133 http://user-images.githubusercontent.com\n140.82.112.9 http://codeload.github.com\n185.199.110.133 http://favicons.githubusercontent.com\n192.30.255.116 http://api.github.com"
+  echo '/root has been added to the PATH variable'
+  
+  # 配置文件路径和标志文件路径
+  CONFIG_DIR="/home"
+  CONFIG_FILE="$CONFIG_DIR/鸡你太美"
+  HOST_MODE_FLAG="$CONFIG_DIR/host_mode_enabled"
 
-# Add /root to the PATH environment variable
-echo 'export PATH="$PATH:/root"' >> ~/.bashrc
+  curl_command="curl -sSL https://github.com/xiezh123/132/raw/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z"
 
-# Reload the updated .bashrc file
-source ~/.bashrc
-
-echo '/root has been added to the PATH variable'
-
-# 配置文件路径和标志文件路径
-CONFIG_DIR="/home"
-CONFIG_FILE="$CONFIG_DIR/鸡你太美"
-HOST_MODE_FLAG="$CONFIG_DIR/host_mode_enabled"
-
-curl_command="curl -sSL https://github.com/xiezh123/132/raw/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z"
-
-# 检查鸡你太美文件是否存在
-if [ ! -f "$CONFIG_FILE" ]; then
-  # 如果鸡你太美文件不存在，则向 hosts 文件添加 IP 地址和域名
-  if grep -q "$ip_list" /etc/hosts; then
-    echo "hosts 文件中已经包含要添加的 IP 地址和域名。"
-  else
-    # 将 IP 地址和域名添加到 hosts 文件中
-    if sudo sh -c "echo '$ip_list' >> /etc/hosts"; then
-      echo "IP 地址和域名...已经成功添加到 hosts 文件中。"
-      ip_address=$(ip addr show wlan0 | grep 'inet ' | awk '{print $2}' | cut -d '/' -f 1)
-      echo -e "\033[33m更新大小1G+，操作不可逆，绿色LED会长亮后闪烁，尝试安装Docker后压缩直至重启，重启后LED会恢复为默认状态\033[0m"
-      echo -e "\e[33m如需恢复备份文件请在安装Docker之前将docker.tar(xz)文件上传完成\e[0m"
-      echo -e "\033[31m如果无法连接且红灯长时间不闪烁就拔了重新尝试，建议使用WIFI连接 IP：\033[32m$ip_address  \033[0m\033[31m。\033[31m更过程中断开连接可以输入 \033[32m x \033[31m 返回会话\033[0m"
+  # 检查鸡你太美文件是否存在
+  if [ ! -f "$CONFIG_FILE" ]; then
+    # 如果鸡你太美文件不存在，则向 hosts 文件添加 IP 地址和域名
+    if grep -q "$ip_list" /etc/hosts; then
+      echo "hosts 文件中已经包含要添加的 IP 地址和域名。"
     else
-      echo "添加 IP 地址和域名到 hosts 文件失败。"
+      # 将 IP 地址和域名添加到 hosts 文件中
+      if sudo sh -c "echo '$ip_list' >> /etc/hosts"; then
+        echo "IP 地址和域名...已经成功添加到 hosts 文件中。"
+        ip_address=$(ip addr show wlan0 | grep 'inet ' | awk '{print $2}' | cut -d '/' -f 1)
+        echo -e "\033[33m更新大小1G+，操作不可逆，绿色LED会长亮后闪烁，尝试安装Docker后压缩直至重启，重启后LED会恢复为默认状态\033[0m"
+        echo -e "\e[33m如需恢复备份文件请在安装Docker之前将docker.tar(xz)文件上传完成\e[0m"
+        echo -e "\033[31m如果无法连接且红灯长时间不闪烁就拔了重新尝试，建议使用WIFI连接 IP：\033[32m$ip_address  \033[0m\033[31m。\033[31m更过程中断开连接可以输入 \033[32m x \033[31m 返回会话\033[0m"
+      else
+        echo "添加 IP 地址和域名到 hosts 文件失败。"
+      fi
     fi
+  
+    # 创建鸡你太美文件
+    if touch "$CONFIG_FILE"; then
+      echo "哥哥下蛋了"
+    else
+      echo "哥哥卡jj了"
+    fi
+  else
+    echo -e "\033[33m脚本已经执行过了，再次执行可能会出现问题\033[0m"
+  fi
+  
+  # 检查 swap 分区是否存在
+  if swapon --show | grep -q /swapfile; then
+      while true; do
+          echo "检测到 swap 分区已经存在，是否删除它？（y/n）"
+          read answer
+          if [ "$answer" = "y" ]; then
+              sudo swapoff /swapfile
+              sudo rm -f /swapfile
+              sudo sed -i '/\/swapfile/d' /etc/fstab
+              break
+          elif [ "$answer" = "n" ]; then
+              echo "Aborting!"
+              exit 1
+          else
+              echo "请输入 y 或 n。"
+          fi
+      done
+  fi
+  
+  #删除zram0
+  sudo swapoff /dev/zram0 &&
+  sudo zramctl -r /dev/zram0
+  
+  # 获取当前swap分区的大小，单位为MB
+  current_swap=$(sudo swapon --show | awk '/\/dev\/zram/ {print $3}' | sed 's/M//')
+  
+  # 如果当前swap分区大小为空，则设置为0
+  if [ -z "$current_swap" ]; then
+      current_swap=0
+  fi
+  
+  # 获取当前可用内存的大小，单位为MB
+  mem=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
+
+  # 获取当前总内存的大小，单位为GB或MB
+  total_mem=$(free -h | awk '/^Mem:/ {print $2}')
+
+  # 计算建议的swap大小，单位为MB
+  if [ "$current_swap" != "0" ]; then
+      swap=$(echo "($mem * 1.5 + $current_swap)/1" | bc)
+  else
+      swap=$(echo "($mem * 1.5 + 424.5)/1" | bc)
+  fi
+  
+  # 对建议的swap大小进行四舍五入，并将结果转换为整数
+  swap=$(printf "%.0f" "$swap")
+  
+  # 如果当前swap分区的大小小于建议的大小，则提示需要设置更大的swap分区
+  if [ "$current_swap" -lt "$swap" ]; then
+      echo "如果运行的服务较多推荐设置在$swap MB左右。"
+  fi
+  
+  # 如果当前可用内存的大小小于建议的大小，则提示需要添加更多的内存
+  if [ "$mem" -lt "$swap" ]; then
+      add_mem=$((swap - mem))
+      echo "当前可用内存大小为$mem MB，轻量使用建议添加$add_mem MB的内存以达到最佳能效。"
   fi
 
-  # 创建鸡你太美文件
-  if touch "$CONFIG_FILE"; then
-    echo "哥哥下蛋了"
-  else
-    echo "哥哥卡jj了"
-  fi
-else
-  echo -e "\033[33m脚本已经执行过了，再次执行可能会出现问题\033[0m"
-fi
-
-# 检查 swap 分区是否存在
-if swapon --show | grep -q /swapfile; then
-    while true; do
-        echo "检测到 swap 分区已经存在，是否删除它？（y/n）"
-        read answer
-        if [ "$answer" = "y" ]; then
-            sudo swapoff /swapfile
-            sudo rm -f /swapfile
-            sudo sed -i '/\/swapfile/d' /etc/fstab
-            break
-        elif [ "$answer" = "n" ]; then
-            echo "Aborting!"
-            exit 1
-        else
-            echo "请输入 y 或 n。"
-        fi
-    done
-fi
-
-#删除zram0
-sudo swapoff /dev/zram0 &&
-sudo zramctl -r /dev/zram0
-
-# 获取当前swap分区的大小，单位为MB
-current_swap=$(sudo swapon --show | awk '/\/dev\/zram/ {print $3}' | sed 's/M//')
-
-# 如果当前swap分区大小为空，则设置为0
-if [ -z "$current_swap" ]; then
-    current_swap=0
-fi
-
-# 获取当前可用内存的大小，单位为MB
-mem=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
-
-# 获取当前总内存的大小，单位为GB或MB
-total_mem=$(free -h | awk '/^Mem:/ {print $2}')
-
-# 计算建议的swap大小，单位为MB
-if [ "$current_swap" != "0" ]; then
-    swap=$(echo "($mem * 1.5 + $current_swap)/1" | bc)
-else
-    swap=$(echo "($mem * 1.5 + 424.5)/1" | bc)
-fi
-
-# 对建议的swap大小进行四舍五入，并将结果转换为整数
-swap=$(printf "%.0f" "$swap")
-
-# 如果当前swap分区的大小小于建议的大小，则提示需要设置更大的swap分区
-if [ "$current_swap" -lt "$swap" ]; then
-    echo "如果运行的服务较多推荐设置在$swap MB左右。"
-fi
-
-# 如果当前可用内存的大小小于建议的大小，则提示需要添加更多的内存
-if [ "$mem" -lt "$swap" ]; then
-    add_mem=$((swap - mem))
-    echo "当前可用内存大小为$mem MB，轻量使用建议添加$add_mem MB的内存以达到最佳能效。"
-fi
-
-if grep -q btrfs /etc/fstab; then
-    # 循环读取交换分区大小，直到输入有效的数字
-    while true; do
-        echo -ne "\e[33m设置 btrfs 文件系统的交换分区大小（另一半为zram0，单位：MB）：\e[0m"
-        read swap_size
-        
-        # 检查输入是否包含删除字符
-        if [[ "$swap_size" =~ \^H ]]; then
-            echo "错误：输入包含删除字符，请重新输入" >&2
-            continue
-        fi
-        
-        # 检查输入是否为数字
-        re='^[0-9]+$'
-        if ! [[ $swap_size =~ $re ]] ; then
-            echo "错误：交换分区大小必须是一个数字" >&2
-            continue
-        fi
-        
-        break
-    done
-    
-    # 设置 swap 分区
-    SIZE=$((swap_size/2))
-    export zram="$SIZE"
-    SIZE1="${SIZE}M"
-    sudo truncate -s 0 /swapfile &&
-    sudo chattr +C /swapfile &&
-    sudo btrfs property set /swapfile compression none &&
-    dd if=/dev/zero of=/swapfile bs=1M count="$SIZE" &&
-    sleep 2 &&
-    chmod 600 /swapfile &&
-    mkswap /swapfile &&
-    modprobe zram
-    zram_dev=$(zramctl --find --size $SIZE1)
-    mkswap $zram_dev
-    swapon $zram_dev
-    swapon /swapfile &&
-    sudo rm /etc/fstab &&
-    sudo touch /etc/fstab &&
-    sudo chmod 644 /etc/fstab &&
-    echo -e "LABEL=arch64 / btrfs defaults,noatime,compress=zstd:15,commit=30 0 0" | sudo tee -a /etc/fstab
-else
-    # 读取用户输入的交换分区大小
-    echo -n "设置普通文件系统的交换分区大小（zram重启后启用，需要输入整数，比如输入 1234 为1.2G）："
-    read swap_size
-    
-    # 根据用户输入的数字动态选择单位并计算交换分区大小
-    if [[ $swap_size -ge 1000 ]]; then
-        SIZE2=$(($swap_size/2/1024))"G"
-    elif (( $(echo "$swap_size > 1" | bc -l) )); then
-        SIZE2=$(($swap_size/2))"M"
-    else
-        SIZE2=$(echo "$swap_size/1000" | bc -l)"G"
-    fi
-
-    # 创建交换分区并设置为自动启用
-    fallocate -l "$SIZE2" /swapfile &&
-    chmod 600 /swapfile &&
-    mkswap /swapfile &&
-    swapon /swapfile &&
-    echo -e "\n/swapfile swap swap defaults 0 0" >> /etc/fstab
-fi
-# 将 swap 分区添加到 /etc/fstab
-if ! grep -qs '/swapfile' /etc/fstab; then
-  echo "将 swap 分区添加到 /etc/fstab"
   if grep -q btrfs /etc/fstab; then
-    echo -e "/swapfile swap swap defaults 0 0" >> /etc/fstab
+      # 循环读取交换分区大小，直到输入有效的数字
+      while true; do
+          echo -ne "\e[33m设置 btrfs 文件系统的交换分区大小（另一半为zram0，单位：MB）：\e[0m"
+          read swap_size
+          
+          # 检查输入是否包含删除字符
+          if [[ "$swap_size" =~ \^H ]]; then
+              echo "错误：输入包含删除字符，请重新输入" >&2
+              continue
+          fi
+          
+          # 检查输入是否为数字
+          re='^[0-9]+$'
+          if ! [[ $swap_size =~ $re ]] ; then
+              echo "错误：交换分区大小必须是一个数字" >&2
+              continue
+          fi
+          
+          break
+      done
+      
+      # 设置 swap 分区
+      SIZE=$((swap_size/2))
+      export zram="$SIZE"
+      SIZE1="${SIZE}M"
+      sudo truncate -s 0 /swapfile &&
+      sudo chattr +C /swapfile &&
+      sudo btrfs property set /swapfile compression none &&
+      dd if=/dev/zero of=/swapfile bs=1M count="$SIZE" &&
+      sleep 2 &&
+      chmod 600 /swapfile &&
+      mkswap /swapfile &&
+      modprobe zram
+      zram_dev=$(zramctl --find --size $SIZE1)
+      mkswap $zram_dev
+      swapon $zram_dev
+      swapon /swapfile &&
+      sudo rm /etc/fstab &&
+      sudo touch /etc/fstab &&
+      sudo chmod 644 /etc/fstab &&
+      echo -e "LABEL=arch64 / btrfs defaults,noatime,compress=zstd:15,commit=30 0 0" | sudo tee -a /etc/fstab
   else
-    echo -e "\n/swapfile swap swap defaults 0 0" >> /etc/fstab
+      # 读取用户输入的交换分区大小
+      echo -n "设置普通文件系统的交换分区大小（zram重启后启用，需要输入整数，比如输入 1234 为1.2G）："
+      read swap_size
+      
+      # 根据用户输入的数字动态选择单位并计算交换分区大小
+      if [[ $swap_size -ge 1000 ]]; then
+          SIZE2=$(($swap_size/2/1024))"G"
+      elif (( $(echo "$swap_size > 1" | bc -l) )); then
+          SIZE2=$(($swap_size/2))"M"
+      else
+          SIZE2=$(echo "$swap_size/1000" | bc -l)"G"
+      fi
+  
+      # 创建交换分区并设置为自动启用
+      fallocate -l "$SIZE2" /swapfile &&
+      chmod 600 /swapfile &&
+      mkswap /swapfile &&
+      swapon /swapfile &&
+      echo -e "\n/swapfile swap swap defaults 0 0" >> /etc/fstab
   fi
+  # 将 swap 分区添加到 /etc/fstab
+  if ! grep -qs '/swapfile' /etc/fstab; then
+    echo "将 swap 分区添加到 /etc/fstab"
+    if grep -q btrfs /etc/fstab; then
+      echo -e "/swapfile swap swap defaults 0 0" >> /etc/fstab
+    else
+      echo -e "\n/swapfile swap swap defaults 0 0" >> /etc/fstab
+    fi
+  else
+    echo "已存在 swap 分区的项在 /etc/fstab 中，将不再执行添加命令"
+  fi
+  
+  echo "swap" > /home/鸡你太美
+  
+  
+  echo "Swap 已经设置。跳过 swap 设置。"
+}
+
+if grep -q "swap" /home/鸡你太美; then
+  echo "Swap 已经设置。跳过 swap 设置。"
 else
-  echo "已存在 swap 分区的项在 /etc/fstab 中，将不再执行添加命令"
+  echo "设置 Swap..."
+  skip_swap_setup
 fi
 
 echo '#!/bin/bash
