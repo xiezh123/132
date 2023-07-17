@@ -470,6 +470,38 @@ elif [[ "$option" == "3d" ]]; then
   echo "Swap 占用情况：$(swapon -s)"
   echo "磁盘挂载情况：$(lsblk)"
   echo "存储占用情况：$(df -h)"
+  # ANSI 转义序列，用于添加颜色
+  green='\033[0;32m'
+  yellow='\033[0;33m'
+  blue='\033[0;34m'
+  magenta='\033[0;35m'
+  cyan='\033[0;36m'
+  reset='\033[0m' # 重置颜色
+  
+  # 获取所有正在运行的容器的ID和名称
+  container_info=$(docker ps --format '{{.ID}}|{{.Names}}')
+
+  # 循环遍历容器ID和名称，并输出容器信息
+  while IFS='|' read -r container_id container_name; do
+    echo -e "${green}容器ID：$container_id${reset}"
+    echo -e "${yellow}容器名称：$container_name${reset}"
+
+    # 输出容器状态信息
+    echo -e "${blue}状态：$(docker inspect --format='{{.State.Status}}' $container_id)${reset} | ${magenta}创建时间：$(docker inspect --format='{{.Created}}' $container_id)${reset} | ${cyan}IP地址：$(docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $container_id)${reset}"
+    echo ""
+
+    # 输出容器端口映射信息
+    echo -e "${blue}端口映射：${reset}"
+    docker port $container_id
+    echo ""
+
+    # 输出容器挂载的卷信息
+    echo -e "${blue}挂载的卷：${reset}"
+    docker inspect --format='{{range .Mounts}}{{printf "%s:%s\n" .Type .Source}}{{end}}' $container_id
+    echo ""
+
+  done <<< "$container_info"
 else
   echo "选项不存在"
+  z
 fi
