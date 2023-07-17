@@ -40,7 +40,87 @@ else
 fi
 # 检查 Docker 是否安装
 if command -v docker > /dev/null; then
-  echo "Docker 已经安装"
+  # 获取磁盘空间信息
+  df_info=$(df -h /)
+    
+  # 解析磁盘空间信息
+  partition=$(echo "$df_info" | awk 'NR==2{print $1}')
+  used=$(echo "$df_info" | awk 'NR==2{print $3}')
+  available=$(echo "$df_info" | awk 'NR==2{print $4}')
+  total=$(echo "$df_info" | awk 'NR==2{print $2}')
+  percent=$(echo "$df_info" | awk 'NR==2{print $5}')
+  # 保存life_time的值到变量lifetime中
+  lifetime=$(cat /sys/class/mmc_host/mmc0/mmc0\:0001/life_time)
+  # 输出磁盘空间信息
+  printf "磁盘分区：%s | 已用空间：%s | 可用空间：%s | 总共空间：%s | 参考寿命：%s | 使用比例：%s\n" "$partition" "$used" "$available" "$total" "$lifetime" "$percent" 
+
+  # 获取当前系统的网络接口名称
+  interface=$(ip route | awk '/^default/ {print $5}')
+
+  # 获取当前网络接口的总共使用流量
+  rx=$(cat /sys/class/net/${interface}/statistics/rx_bytes)
+  tx=$(cat /sys/class/net/${interface}/statistics/tx_bytes)
+
+  # 计算总共使用流量
+  total=$((rx + tx))
+
+  # 定义流量单位数组
+  units=(B KB MB GB TB PB EB ZB YB)
+  # 循环遍历流量单位数组，选择合适的单位
+  unit=0
+  while [ ${total} -gt 1024 ] && [ ${unit} -lt 8 ]; do
+      total=$(echo "${total}/1024" | bc)
+      unit=$((unit+1))
+  done
+  # 获取 CPU 温度
+  cpu_temp=$(cat /sys/class/thermal/thermal_zone0/temp)
+
+  # 将温度除以 1000，以得到以摄氏度为单位的温度
+  cpu_temp_c=$(echo "scale=2; $cpu_temp/1000" | bc)
+
+  # 获取系统内存和交换分区信息，并将结果存储在变量中
+  mem_info=$(free -h | awk 'NR==2{printf "%s/%s\n", $7, $2}')
+
+  # 获取所有 zram 设备的使用情况，并将结果存储在变量中
+  zram_info=$(sudo zramctl | awk 'NR>1{printf "%s/%s（%s，%s/%s/%s） ", $4, $3, $1, $2, $5, $7}')
+
+  # 执行 swapon -s 命令，并将结果存储到变量中
+  swap_info=$(swapon -s)
+
+  # 提取 /swapfile 的大小和使用情况
+  swapfile_size=$(echo "$swap_info" | grep '/swapfile' | awk '{print $3}')
+  swapfile_used=$(echo "$swap_info" | grep '/swapfile' | awk '{print $4}')
+  # 将 /swapfile 的大小和使用情况转换为 MB
+  swapfile_size_mb=$(echo "scale=2; $swapfile_size/1024" | bc)
+  swapfile_used_mb=$(echo "scale=2; $swapfile_used/1024" | bc)
+
+  # 输出总共使用流量
+  echo "使用的流量：${total} ${units[$unit]}，CPU 温度为：$cpu_temp_c°C，可用/总共: $mem_info，swap：$swapfile_used_mb/$swapfile_size_mb MB，zram ：$zram_info"
+
+  # 获取所有容器信息
+  container_info=$(docker ps -a --format "{{.Names}}|{{.State}}")
+  # 循环遍历所有容器信息，输出到一行中，并用竖线隔开
+  output=""
+  for info in $container_info
+  do
+      # 提取容器名称和状态信息
+      name=$(echo $info | cut -d "|" -f 1)
+      state=$(echo $info | cut -d "|" -f 2)
+
+      # 检查容器状态是否为 running
+      if [[ $state == "running" ]]; then
+          # 如果容器正在运行，标记为绿色
+          output+="\033[32m$name\033[0m | "
+      else
+          # 如果容器未运行，使用黄色
+          output+="\033[33m$name\033[0m | "
+      fi
+  done
+  # 去掉输出字符串末尾的竖线和空格
+  output=${output% | }
+
+  # 输出所有容器名称
+  echo -e "容器状态：$output"
 else
   echo "Docker没有安装，正在拉取安装脚本..."
 
@@ -49,89 +129,9 @@ else
 
   # 检查 Docker 是否安装成功
   if command -v docker > /dev/null; then
-    # 获取磁盘空间信息
-    df_info=$(df -h /)
-    
-    # 解析磁盘空间信息
-    partition=$(echo "$df_info" | awk 'NR==2{print $1}')
-    used=$(echo "$df_info" | awk 'NR==2{print $3}')
-    available=$(echo "$df_info" | awk 'NR==2{print $4}')
-    total=$(echo "$df_info" | awk 'NR==2{print $2}')
-    percent=$(echo "$df_info" | awk 'NR==2{print $5}')
-    # 保存life_time的值到变量lifetime中
-    lifetime=$(cat /sys/class/mmc_host/mmc0/mmc0\:0001/life_time)
-    # 输出磁盘空间信息
-    printf "磁盘分区：%s | 已用空间：%s | 可用空间：%s | 总共空间：%s | 参考寿命：%s | 使用比例：%s\n" "$partition" "$used" "$available" "$total" "$lifetime" "$percent" 
-
-    # 获取当前系统的网络接口名称
-    interface=$(ip route | awk '/^default/ {print $5}')
-
-    # 获取当前网络接口的总共使用流量
-    rx=$(cat /sys/class/net/${interface}/statistics/rx_bytes)
-    tx=$(cat /sys/class/net/${interface}/statistics/tx_bytes)
-
-    # 计算总共使用流量
-    total=$((rx + tx))
-
-    # 定义流量单位数组
-    units=(B KB MB GB TB PB EB ZB YB)
-    # 循环遍历流量单位数组，选择合适的单位
-    unit=0
-    while [ ${total} -gt 1024 ] && [ ${unit} -lt 8 ]; do
-        total=$(echo "${total}/1024" | bc)
-        unit=$((unit+1))
-    done
-    # 获取 CPU 温度
-    cpu_temp=$(cat /sys/class/thermal/thermal_zone0/temp)
-
-    # 将温度除以 1000，以得到以摄氏度为单位的温度
-    cpu_temp_c=$(echo "scale=2; $cpu_temp/1000" | bc)
-
-    # 获取系统内存和交换分区信息，并将结果存储在变量中
-    mem_info=$(free -h | awk 'NR==2{printf "%s/%s\n", $7, $2}')
-
-    # 获取所有 zram 设备的使用情况，并将结果存储在变量中
-    zram_info=$(sudo zramctl | awk 'NR>1{printf "%s/%s（%s，%s/%s/%s） ", $4, $3, $1, $2, $5, $7}')
-
-    # 执行 swapon -s 命令，并将结果存储到变量中
-    swap_info=$(swapon -s)
-
-    # 提取 /swapfile 的大小和使用情况
-    swapfile_size=$(echo "$swap_info" | grep '/swapfile' | awk '{print $3}')
-    swapfile_used=$(echo "$swap_info" | grep '/swapfile' | awk '{print $4}')
-    # 将 /swapfile 的大小和使用情况转换为 MB
-    swapfile_size_mb=$(echo "scale=2; $swapfile_size/1024" | bc)
-    swapfile_used_mb=$(echo "scale=2; $swapfile_used/1024" | bc)
-
-    # 输出总共使用流量
-    echo "使用的流量：${total} ${units[$unit]}，CPU 温度为：$cpu_temp_c°C，可用/总共: $mem_info，swap：$swapfile_used_mb/$swapfile_size_mb MB，zram ：$zram_info"
-
-    # 获取所有容器信息
-    container_info=$(docker ps -a --format "{{.Names}}|{{.State}}")
-    # 循环遍历所有容器信息，输出到一行中，并用竖线隔开
-    output=""
-    for info in $container_info
-    do
-        # 提取容器名称和状态信息
-        name=$(echo $info | cut -d "|" -f 1)
-        state=$(echo $info | cut -d "|" -f 2)
-
-        # 检查容器状态是否为 running
-        if [[ $state == "running" ]]; then
-            # 如果容器正在运行，标记为绿色
-            output+="\033[32m$name\033[0m | "
-        else
-            # 如果容器未运行，使用黄色
-            output+="\033[33m$name\033[0m | "
-        fi
-    done
-    # 去掉输出字符串末尾的竖线和空格
-    output=${output% | }
-
-    # 输出所有容器名称
-    echo -e "容器状态：$output"
+    echo -e "\033[32mDocker成功！请输入1后选择安装\033[0m"
   else
-    echo "Docker 安装失败，请输入1后继续选择安装"
+    echo -e "\033[33mDocker 安装失败，请输入1或者回车后继续选择安装\033[0m"
   fi
 fi
 echo "请选择要执行的操作："
