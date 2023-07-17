@@ -243,6 +243,7 @@ elif [ "$option" == "2" ]; then
   echo "g. 查看emmc"
   echo "h. LED控制选项"
   echo "i. 安装桌面（xfce）"
+  echo "j. 添加push推送"
   read -p "请输入选项（a、b、c、d、e）：" check_option
 
   if [ "$check_option" == "a" ]; then
@@ -357,6 +358,50 @@ elif [ "$option" == "2" ]; then
     GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 echo -e "${GREEN}请使用远程桌面客户端连接到服务器，使用root用户名和密码登录。${NC}"
+  elif [ "$check_option" == "j" ]; then
+    # 设置拉取次数
+    max_attempts=2
+    attempts=0
+
+    # 设置文件名和路径
+    file_name="push"
+    file_path="/srv/$file_name"
+    # 检查是否能够 ping 通 raw.githubusercontent.com
+    ping -c 1 raw.githubusercontent.com > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        url="https://raw.githubusercontent.com/xiezh123/132/main/6.sh"
+    else
+        url="https://raw.staticdn.net/xiezh123/132/main/6.sh"
+    fi
+    # 尝试拉取文件
+    while [ $attempts -lt $max_attempts ]; do
+        attempts=$((attempts+1))
+        echo "正在尝试从 $url 拉取文件，第 $attempts 次尝试..."
+        if curl -# -o "$file_path" "$url" > /dev/null 2>&1; then
+            if [ -s "$file_path" ]; then
+                echo "成功拉取文件 $file_name 到 $file_path"
+                while true; do
+                  # 获取用户输入的MyToken值
+                  echo -e "\033[33m请前往push官方网站，登录并且复制Token\033[0m"
+                  read -p "请输入Token值： " -n 32 my_token
+                  # 检查输入是否为32位十六进制数字
+                  if [[ ! $my_token =~ ^[0-9a-fA-F]{32}$ ]]; then
+                    echo -e "\033[31m输入不正确，请输入32位十六进制数字。\033[0m"
+                  else
+                    # 将MyToken值写入push文件
+                    sed -i "s/MyToken=\"[0-9a-fA-F]*\"/MyToken=\"$my_token\"/" /srv/push
+                    echo "MyToken值已更新为：$my_token"
+                    break
+                  fi
+                done
+                bash /srv/push
+                echo -e "\033[32m已经执行推送，请查看是否成功。\033[0m"
+                exit 0
+            fi
+        fi
+    done
+    echo "无法拉取文件 $file_name"
+    exit 1
   else
     echo "选项不存在"
   fi
