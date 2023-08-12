@@ -125,6 +125,7 @@ else
   echo "Docker没有安装，正在拉取安装脚本..."
 
   # 执行 Docker 安装脚本
+  apt update && apt upgrade
   bash <(curl -sSL https://linuxmirrors.cn/docker.sh)
 
   # 检查 Docker 是否安装成功
