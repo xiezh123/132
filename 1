@@ -515,19 +515,7 @@ elif [[ "$option" == "3a" ]]; then
       echo 0 > /sys/class/leds/mmc0\:\:/brightness #红灯
       echo none > /sys/class/leds/blue\:wifi/trigger #蓝灯
       echo none > /sys/class/leds/green\:internet/trigger #绿灯
-      if [ ! -f "/etc/dconf/jntm/led" ]; then
-          echo "文件不存在"
-          exit 1
-      fi
-
-      # 检查文件内容是否为"no"
-      if grep -q "no" "/etc/dconf/jntm/led"; then
-          echo "文件已经包含\"no\""
-          exit 0
-      fi
-
-      # 添加"no"到文件尾部
-      echo "no" >> "/etc/dconf/jntm/led"
+      export LED=1
       ;;
   esac
 elif [[ "$option" == "3b" ]]; then 
