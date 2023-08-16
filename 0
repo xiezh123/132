@@ -1,10 +1,21 @@
 #!/bin/bash
 
-if ! ls /boot/vmlinuz-5.15.0-jsbsbxjxh66+ &> /dev/null; then
+############################################################################################
+
+if ! ls /boot/vmlinuz-5.15.0-jsbsbxjxh66+ &> /dev/null && ! ls /boot/vmlinuz-6.4.0-rc4-jsbsbxjxh66-compile+ &> /dev/null ; then
     echo "脚本无法在此设备上运行"
     sudo rm /root/0
     exit 1
 fi
+
+function ip1 {
+
+# 获取执行前的磁盘空间并保存到环境变量中
+export DF_BEFORE=$(df -h /)
+
+# 获取当前时间并保存到环境变量中
+export MY_TIME=$(date +%Y-%m-%d_%H:%M:%S)
+################################################################################################################################################################################设置sawp
 
 function skip_swap_setup {
   
@@ -44,7 +55,7 @@ function skip_swap_setup {
       if sudo sh -c "echo '$ip_list' >> /etc/hosts"; then
         echo "IP 地址和域名...已经成功添加到 hosts 文件中。"
         ip_address=$(ip addr show wlan0 | grep 'inet ' | awk '{print $2}' | cut -d '/' -f 1)
-        echo -e "\033[33m更新大小1G+，操作不可逆，绿色LED会长亮后闪烁，尝试安装Docker后压缩直至重启，重启后LED会恢复为默认状态\033[0m"
+        echo -e "\033[33m更新大小1G+，操作不可逆，绿色LED会一直闪烁到重启，尝试安装Docker后压缩直至重启，重启后LED会恢复为默认状态\033[0m"
         echo -e "\e[33m如需恢复备份文件请在安装Docker之前将docker.tar(xz)文件上传完成(/root目录）\e[0m"
         echo -e "\033[31m如果无法连接且红灯长时间不闪烁就拔了重新尝试，建议使用WIFI连接 IP：\033[32m$ip_address  \033[0m\033[31m。\033[31m更过程中断开连接可以输入 \033[32m x \033[31m 返回会话\033[0m"
       else
@@ -120,14 +131,19 @@ function skip_swap_setup {
   # 如果当前可用内存的大小小于建议的大小，则提示需要添加更多的内存
   if [ "$mem" -lt "$swap" ]; then
       add_mem=$((swap - mem))
-      echo "当前可用内存大小为$mem MB，轻量使用建议添加$add_mem MB的内存以达到最佳能效。"
+      echo -e "当前可用内存大小为${mem} MB，轻量使用建议添加\e[32m${add_mem}\e[0m MB的内存以达到最佳能效。\033[K"
   fi
 
   if grep -q btrfs /etc/fstab; then
       # 循环读取交换分区大小，直到输入有效的数字
       while true; do
-          echo -ne "\e[33m设置 btrfs 文件系统的交换分区大小（另一半为zram0，单位：MB）：\e[0m"
+          echo -ne "\e[33m设置 btrfs 文件系统的交换分区大小（另一半为zram0，回车直接使用绿色值，单位：MB）：\e[0m"
           read swap_size
+
+          # 如果用户没有输入数字而直接回车，则使用 $add_mem 变量的值
+          if [ -z "$swap_size" ]; then
+              swap_size="$add_mem"
+          fi
           
           # 检查输入是否包含删除字符
           if [[ "$swap_size" =~ \^H ]]; then
@@ -169,7 +185,15 @@ function skip_swap_setup {
       # 读取用户输入的交换分区大小
       echo -n "设置普通文件系统的交换分区大小（zram重启后启用，需要输入整数，比如输入 1234 为1.2G）："
       read swap_size
-      
+
+      read -r -t 5 -n 1 -p $'\033[33m等待5秒后添加主机模式，如果需要电脑USB网络共享则回车跳过添加\033[0m\n' input
+
+      if [ "$?" -ne "0" ] || [ "$input" == $'\n' ]; then
+        echo "echo host > /sys/kernel/debug/usb/ci_hdrc.0/role" >> /etc/rc.local
+        echo "已添加命令到开机自启"
+      else
+        echo "正在创建虚拟内存，稍等一会"
+      fi
       # 根据用户输入的数字动态选择单位并计算交换分区大小
       if [[ $swap_size -ge 1000 ]]; then
           SIZE2=$(($swap_size/2/1024))"G"
@@ -204,6 +228,8 @@ function skip_swap_setup {
   echo "Swap 已经设置。跳过 swap 设置。"
 }
 
+#####################################################
+
 if grep -q "swap" /home/鸡你太美; then
   echo "Swap 已经设置。跳过 swap 设置。"
 else
@@ -211,7 +237,11 @@ else
   skip_swap_setup
 fi
 
-echo '#!/bin/bash
+################################################################################################################################################################################服务
+# 交换分区
+sys1() {
+
+script_content="#!/bin/bash
 
 # 关闭 zram0 交换分区
 sudo swapoff /dev/zram0
@@ -221,12 +251,70 @@ sudo zramctl -r /dev/zram0
 sudo modprobe zram
 
 # 获取 /swapfile 文件的大小
-swapfile_size=$(sudo du -h /swapfile | awk '\''{print $1}'\'')
+swapfile_size=\$(sudo du -h /swapfile | awk '{print \$1}')
 
 # 创建新的 zram0 交换分区
-zram_dev=$(sudo zramctl --find --size $swapfile_size)
-sudo mkswap $zram_dev
-sudo swapon $zram_dev' > zram.sh
+zram_dev=\$(sudo zramctl --find --size \$swapfile_size)
+sudo mkswap \$zram_dev
+sudo swapon \$zram_dev
+
+######################################################
+nmcli radio wifi off
+
+sleep 30
+
+nmcli radio wifi on
+
+sleep 2
+
+# 执行 ifconfig 命令并将输出保存到变量中
+output=\$(ifconfig usb0)
+
+# 使用 grep 命令在输出中查找目标字符串
+if echo \"\$output\" | grep -q \"inet 10.42.0.1\"; then
+    echo \"usb0 接口具有 inet 10.42.0.1 的内容\"
+else
+    echo host > /sys/kernel/debug/usb/ci_hdrc.0/role
+    sleep 3
+
+    # 执行 fdisk -l 命令并将结果保存到变量中
+    output=\$(fdisk -l)
+
+    # 使用正则表达式匹配设备信息，并将匹配结果保存到数组中
+    regex='/dev/sda1\s+[0-9]+\s+[0-9]+\s+[0-9]+\s+([0-9.]+[KMG]?)\s+Linux filesystem'
+    devices=()
+    while read -r line; do
+        if [[ \$line =~ \$regex ]]; then
+            size=\${BASH_REMATCH[1]}
+            devices+=(\"\$line\")
+        fi
+    done <<< \"\$output\"
+
+    # 挂载设备
+    if [ \${#devices[@]} -gt 0 ]; then
+        echo \"找到以下设备：\"
+        for device in \"\${devices[@]}\"; do
+            echo \"\$device\"
+            # 提取设备路径
+            device_path=\$(echo \"\$device\" | awk '{print \$1}')
+            # 创建挂载点目录
+            mount_point=\"/mnt/\$(basename \"\$device_path\")\"
+            echo \"将 \$device_path 挂载到 \$mount_point\"
+            mkdir -p \"\$mount_point\"
+            # 挂载设备
+            mount \"\$device_path\" \"\$mount_point\"
+        done
+    else
+        echo \"未找到匹配的设备。\"
+    fi
+fi
+
+sleep 2
+
+sudo systemctl start docker"
+
+# 将脚本内容写入脚本文件
+echo "$script_content" > zram.sh
 
 echo '#脚本
 # 压缩算法，效果: zstd > lzo > lz4，速度: lz4 > zstd > lzo，默认lz4
@@ -238,7 +326,10 @@ PERCENT=10
 
 #交换分区优先级
 PRIORITY=300' > zramswap
-
+}
+#######################################################################################
+# 备份脚本
+sys2() {
 echo '#!/bin/bash
 
 # 定义恢复备份文件的函数
@@ -274,7 +365,7 @@ function delete_backup_files {
   sudo systemctl start docker
   echo "容器在恢复过程中可能会轻微卡顿"
   sleep 10
-  top
+  htop
 }
 
 # 询问用户备份/恢复操作
@@ -357,7 +448,6 @@ elif [ "$action" == "2" ]; then
         echo "已恢复 /var/lib/docker 目录"
         # 询问用户是否删除备份文件
         delete_backup_files $backup_dir
-        
     else
         echo "$backup_dir/docker.tar 或 $backup_dir/docker.tar.xz 文件不存在"
     fi
@@ -368,80 +458,11 @@ else
 fi
 
 ' > /usr/local/bin/b
-
-chmod +x /usr/local/bin/b
-
-#移动到/etc/default并且启用自启服务
-sudo cp /etc/default/zramswap /etc/default/zramswap.bak
-sudo rm -f /etc/default/zramswap
-sudo mv zram.sh /etc/default/zram.sh
-sudo mv zramswap /etc/default/zramswap
-sudo chmod +x /etc/default/zramswap
-sudo chmod +x /etc/default/zram.sh
-sudo mkdir /etc/dconf/jntm
-
-echo '[Unit]
-Description=Setup Zram swap
-After=local-fs.target
-
-[Service]
-ExecStartPre=/bin/sleep 45
-ExecStart=/etc/default/zram.sh
-Type=oneshot
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target' | sudo tee /etc/systemd/system/zram.service
-
-sudo systemctl daemon-reload
-
-sudo systemctl enable zram.service
-
-#sudo systemctl status zram.service  # 查看服务状态
-
-# 检查/etc/fstab文件中是否有包含关键字btrfs的行，创建低内存自动压缩服务
-#if grep -q 'btrfs' /etc/fstab; then
-  # 如果是Btrfs文件系统，则创建systemd服务
-#  echo '[Unit]
-#  Description=Defragment root btrfs filesystem when memory low
-#  After=local-fs.target
-
-#  [Service]
-#  Type=oneshot
-#  ExecStart=/bin/bash -c "free | awk '\''/^Mem/ {exit ($7>800000)}'\''; if [ $? -eq 1 ]; then /usr/bin/screen -dmS btrfs bash -c '\''btrfs filesystem defragment -r -v -czstd /'\''; fi"
-#  User=root
-
-#  [Install]
-#  WantedBy=multi-user.target' | sudo tee /etc/systemd/system/btrfs-defragment.service > /dev/null
-
-  # 启用和启动服务
-#  sudo systemctl enable btrfs-defragment.service
-#  sudo systemctl start btrfs-defragment.service
-#else
-  # 如果不是Btrfs文件系统，则输出一条错误信息
-#  echo "不是Btrfs文件系统，跳过添加"
-#fi
-
-# 创建标志服务文件
-cat << EOF > /etc/systemd/system/check_dconf.service
-[Unit]
-Description=Check dconf for jntm and led
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash -c 'if [ ! -d "/etc/dconf/jntm" ]; then mkdir /etc/dconf/jntm; fi; cd /etc/dconf/jntm; if [ ! -f "led" ]; then echo "删除或者更改会使led失控" > led; else led_content="$(cat led)"; if [ "$led_content" != "删除或者更改会使led失控" ]; then rm led; echo "删除或者更改会使led失控" > led; fi; fi'
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 重新加载Systemd服务
-systemctl daemon-reload
-
-# 启用服务
-systemctl enable check_dconf.service
-
-echo '#!/bin/bash
+}
+#######################################################################################
+# Led控制
+sys3() {
+  echo '#!/bin/bash
 
 # 定义LED控制函数
 led_control() {
@@ -462,7 +483,7 @@ led_control() {
   # 如果头值小于5，则退出脚本
   if [ $head -lt 5 ]; then
     echo "头值小于5，停止执行脚本。"
-    exit
+    exit 1
   fi
     
   echo 255 > /sys/class/leds/green:internet/brightness
@@ -524,9 +545,9 @@ function wifi_reconnect {
     if [ $? -ne 0 ]; then
         echo "WiFi连接已断开，正在尝试重新连接..."
         nmcli radio wifi off
-        sleep 15
+        sleep 5
         nmcli radio wifi on
-        sleep 30
+        sleep 10
         ping -c 3 www.baidu.com > /dev/null 2>&1
         if [ $? -eq 0 ]; then
             echo "WiFi重新连接成功。"
@@ -538,34 +559,44 @@ function wifi_reconnect {
 
 #写入日志
 function write_wifi_log() {
-    # 定义记录次数的计数器
-    count=0
-    
-    # 判断记录次数是否达到 100 次
-    if [ -f /etc/dconf/jntm/wifi.log ]; then
-        count=$(cat /etc/dconf/jntm/wifi.log)
-    fi
-    
-    if [ $count -lt 100 ]; then
-        # 记录次数加 1，并更新计数器文件
-        count=$((count+1))
-        echo $count > /etc/dconf/jntm/wifi.log
-        echo "记录次数：$count"
-    else
-        # 记录次数达到 100 次，删除计数器文件
-        echo "记录次数已达到 100 次，删除计数器文件。"
-        sudo rm /etc/dconf/jntm/wifi.log
-        systemctl suspend
-        exit 0
+# 检查wifi.log文件是否存在
+if [ ! -e /etc/dconf/jntm/wifi.log ]; then
+    touch /etc/dconf/jntm/wifi.log
+    echo "$(date +%Y-%m-%d\ %H:%M:%S): wifi.log does not exist, creating one." >> /var/log/wifi.log
+fi
+
+# 判断执行次数是否达到10次
+if [ ! -e /etc/dconf/jntm/opweroff ]; then
+    if [ ! -e /var/log/count.log ]; then
+        echo "0" > /var/log/count.log
     fi
 
-    # 判断记录次数是否等于 30 次
-    if [ $count -eq 30 ]; then
-        echo "记录次数已达到 30 次，执行 /sbin/reboot 命令。"
+    count=$(cat /var/log/count.log)
+    count=$((count+1))
+    echo $count > /var/log/count.log
+
+    if [ "$count" -eq 10 ]; then
+        # 创建opweroff文件
+        touch /etc/dconf/jntm/opweroff
+        # 执行函数1
         /sbin/reboot
-    else
-        echo "跳过。"
     fi
+else
+    # 删除创建的文件
+    rm -f /var/log/count.log
+    rm -f /etc/dconf/jntm/wifi.log
+    rm -f /etc/dconf/jntm/opweroff
+
+    # 检查网络连接是否畅通
+    if ping -c 1 www.baidu.com &> /dev/null; then
+        exit 0 # 如果网络畅通，则停止执行
+    fi
+
+    # 执行函数2
+    sleep 2
+    systemctl suspend
+
+fi
 }
 
 #删除wifilog
@@ -575,6 +606,17 @@ function remove_wifi_log() {
     # 检查 log 文件是否存在，如果存在则删除
     if [ -e "${logfile}" ]; then
         rm "${logfile}"
+    fi
+    if [ -e /var/log/count.log ]; then
+        rm -f /var/log/count.log
+    fi
+    
+    if [ -e /etc/dconf/jntm/wifi.log ]; then
+        rm -f /etc/dconf/jntm/wifi.log
+    fi
+    
+    if [ -e /etc/dconf/jntm/opweroff ]; then
+        rm -f /etc/dconf/jntm/opweroff
     fi
 }
 
@@ -593,11 +635,28 @@ else
     fi
 fi
 ' > /etc/dconf/jntm/LEDnetwork.sh
+}
+#######################################################################################
+# 赋予执行权限
+sys() {
+  #移动到/etc/default并且启用自启服务
+  sudo cp /etc/default/zramswap /etc/default/zramswap.bak
+  sudo rm -f /etc/default/zramswap
+  sudo mv zram.sh /etc/default/zram.sh
+  sudo mv zramswap /etc/default/zramswap
+  sudo chmod +x /etc/default/zramswap
+  sudo chmod +x /etc/default/zram.sh
+  sudo chmod +x /etc/dconf/jntm/LEDnetwork.sh
+  sudo chmod +x /usr/local/bin/b
+  #备份sources.list
+  sudo cp /etc/apt/sources.list /etc/apt/sources.list.backup
 
-sudo chmod +x /etc/dconf/jntm/LEDnetwork.sh
-
-# 创建服务文件
-cat << EOF > /etc/systemd/system/led.service
+}
+#######################################################################################
+# 启用系统服务
+sysd () {
+# Create led.service file
+cat << EOL > /etc/systemd/system/led.service
 [Unit]
 Description=Check network for jntm and led
 
@@ -610,43 +669,180 @@ RestartSec=30
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOL
 
-# 重新加载Systemd服务
+# Enable led.service
 systemctl daemon-reload
+systemctl enable led.service
 
-# 启用服务
-sudo systemctl enable led.service
+# Create zram.service file
+cat << EOL > /etc/systemd/system/zram.service
+[Unit]
+Description=Setup Zram swap
+After=local-fs.target
 
-#备份sources.list
-sudo cp /etc/apt/sources.list /etc/apt/sources.list.backup
+[Service]
+ExecStartPre=/bin/sleep 45
+ExecStart=/etc/default/zram.sh
+Type=oneshot
+RemainAfterExit=yes
 
-# 更改软件源为阿里源并更新必要的软件包
-echo "使用阿里源更新"
-echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
-echo "deb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list
-echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
-echo "deb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
-echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
-echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
-echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
-echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
-#echo "deb http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
-#echo "deb-src http://deb.debian.org/debian buster main" >> /etc/apt/sources.list
+[Install]
+WantedBy=multi-user.target
+EOL
 
+# Enable zram.service
+systemctl daemon-reload
+systemctl enable zram.service
+
+# Create check_dconf.service file
+cat << EOL > /etc/systemd/system/check_dconf.service
+[Unit]
+Description=Check dconf for jntm and led
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'if [ ! -d "/etc/dconf/jntm" ]; then mkdir /etc/dconf/jntm; fi; cd /etc/dconf/jntm; if [ ! -f "led" ]; then echo "删除或者更改会使led失控" > led; else led_content="$(cat led)"; if [ "$led_content" != "删除或者更改会使led失控" ]; then rm led; echo "删除或者更改会使led失控" > led; fi; fi'
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+# Enable check_dconf.service
+systemctl daemon-reload
+systemctl enable check_dconf.service
+}
+
+########################################################################################################################################################################################
+
+# 检查/etc/dconf目录是否包含jntm文件夹
+if [ -d /etc/dconf/jntm ]; then
+  echo "jntm文件夹已存在，跳过执行。"
+else
+  # 如果文件夹不存在，则创建它
+  mkdir /etc/dconf/jntm
+  echo "已创建jntm文件夹。"
+  sys1
+  sys2
+  sys3
+  sys
+  sysd
+fi
+#sys是执行权限，sysd是系统服务的创建，sys1是zrm0的启用,2是备份脚本的创建，3是led的控制
+
+########################################################################################################################################################################################
+# 更新源函数
+function set_debian_mirror() {
+    mirror="mirrors.ustc.edu.cn"
+
+    echo "正在测试中科大源..."
+    avg_time=$(ping -c 3 "$mirror" | tee /dev/tty | awk -F'/' 'END{print $5}')
+
+    if [ -n "$avg_time" ]; then
+        echo "平均ping时间为 $avg_time 毫秒。"
+        ip_address=$(ping -c 1 -n -q "$mirror" | awk -F'[()]' 'NR==1{print $2}')
+        echo "服务器IP地址为 $ip_address。"
+
+        if [ -n "$ip_address" ]; then
+            echo "将 $mirror 的IP地址 $ip_address 添加到 hosts 文件中..."
+            echo "$ip_address $mirror" | sudo tee -a /etc/hosts >/dev/null
+            echo "deb https://mirrors.ustc.edu.cn/debian/ bullseye main contrib non-free" > /etc/apt/sources.list
+            echo "deb-src https://mirrors.ustc.edu.cn/debian/ bullseye main contrib non-free" >> /etc/apt/sources.list
+            echo "deb https://mirrors.ustc.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list
+            echo "deb-src https://mirrors.ustc.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list
+            echo "deb https://mirrors.ustc.edu.cn/debian/ bullseye-backports main contrib non-free" >> /etc/apt/sources.list
+            echo "deb-src https://mirrors.ustc.edu.cn/debian/ bullseye-backports main contrib non-free" >> /etc/apt/sources.list
+            echo "deb https://mirrors.ustc.edu.cn/debian-security/ bullseye-security main contrib non-free" >> /etc/apt/sources.list
+            echo "deb-src https://mirrors.ustc.edu.cn/debian-security/ bullseye-security main contrib non-free" >> /etc/apt/sources.list
+            echo "完成。"
+        else
+            echo "尝试使用阿里源"
+            mirror2="mirrors.aliyun.com"
+            echo "正在获取 $mirror2 的IP地址..."
+            ip_address2=$(ping -c 1 -n -q "$mirror2" | awk -F'[()]' 'NR==1{print $2}')
+
+            if [ -n "$ip_address2" ]; then
+                echo "将 $mirror2 的IP地址 $ip_address 添加到 hosts 文件中..."
+                echo "$ip_address2 $mirror2" | sudo tee -a /etc/hosts >/dev/null
+                echo "完成。"
+            else
+                echo "无法获取 $mirror2 的IP地址。"
+            fi
+            echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
+            echo "deb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list
+            echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+            echo "deb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+            echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+            echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+            echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+            echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+        fi
+    else
+        echo "无法连接到网络"
+        while true
+        do
+            ping -c 1 www.baidu.com >/dev/null 2>&1
+            if [ $? -eq 0 ]; then
+                echo "网络正常"
+                break
+            else
+                echo "网络无法访问，继续尝试，成功为止。"
+                sleep 1
+            fi
+        done
+
+        echo "退出循环"
+        set_debian_mirror
+
+    fi
+}
+
+# 调用函数
+set_debian_mirror
 
 # 检查screen和git是否已安装
 if ! command -v screen &> /dev/null
 then
     echo "screen is not installed, installing now..."
     sudo apt-get update
-    sudo apt-get install screen -y
+    sudo apt-get install screen cpufrequtils -y
 else
-    echo "安装工具1"
+    echo "已经安装工具？？？"
 fi
 
-#在根目录下创建
+# 检查 screen 和 cpufrequtils 是否已安装
+if dpkg -s screen cpufrequtils >/dev/null 2>&1; then
+  echo "screen 和 cpufrequtils 已安装"
+else
+  echo -e "\033[31m更新失败，使用阿里源\033[0m"
+  echo "182.89.194.244 mirrors.aliyun.com" | sudo tee -a /etc/hosts
+  echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
+  echo "deb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list
+  echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+  echo "deb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
+  echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+  echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
+  echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+  echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
+  sudo apt-get update
+  sudo apt-get install screen cpufrequtils -y
+fi
+
+#在根目录下创建，调整性能模式
 sudo mkdir /updata
+sudo cpufreq-set -g performance
+########################################################################################################################################################################################
+
+# 检查/etc/apt目录是否包含sources.list.backup文件
+if [ -f /etc/apt/sources.list.backup ]; then
+  echo "sources.list.backup文件已存在，跳过执行。"
+else
+  # 如果文件不存在，则调用sys函数
+  sys
+fi
+
+##################################################################################################
+
 
 echo '#!/bin/bash
 
@@ -682,9 +878,6 @@ sudo tee /etc/docker/daemon.json > /dev/null <<EOF
 }
 EOF
 
-echo none > /sys/class/leds/green:internet/trigger && sleep 1
-echo 255 > /sys/class/leds/green:internet/brightness && sleep 1
-
 apt upgrade -y && sleep 2
 
 # 检查根文件系统的已用空间占比
@@ -704,8 +897,8 @@ else
   echo "根文件系统已用空间占比低于等于 35%，无需进行磁盘碎片整理。"
 fi
 # 安装推荐软件包
-echo "安装推荐软件包"
-apt-get install zip byobu cron btrfs-progs rsync preload pv sshpass curlftpfs -y && sleep 3
+echo "为您的系统安装推荐软件包"
+apt-get install gnupg2 byobu cron btop rsync preload pv sshpass curlftpfs irqbalance -y && sleep 3
 
 # 确保docker目录存在
 mkdir -p /etc/docker
@@ -722,29 +915,75 @@ cat <<EOT > /etc/docker/daemon.json
 }
 EOT
 
-# 执行 Docker 安装命令
-echo timer > /sys/class/leds/green\:internet/trigger && echo 1000 > /sys/class/leds/green\:internet/delay_on && echo 1000 > /sys/class/leds/green\:internet/delay_off && sleep 1
-echo "安装Docker." && sleep 1
+echo "确保您的系统具有最新的 GPG 密钥库"
+sudo apt-key adv --refresh-keys --keyserver keyserver.ubuntu.com
 
-attempt=0
-while [ $attempt -lt 5 ]; do
-    if ! command -v docker &> /dev/null; then
-        echo "正在安装 Docker..."
-        wget -qO- https://get.docker.com | bash -s docker --mirror Aliyun || wget -qO- https://get.docker.com | bash -s docker --mirror Aliyun
-    fi
+# 使用阿里云的Docker镜像下载并运行 get.docker.com 脚本
+echo "正在测试拉取环境"
+if ping -c 4 get.docker.com; then
+  echo -e "\033[32mPing 测试成功。正在下载 Docker 安装脚本...\033[0m"
+  curl -# https://get.docker.com -o get-docker.sh
+  if [ ! -s get-docker.sh ]; then
+    echo -e "\033[31m下载的 Docker 安装脚本为空文件，尝试其他安装方法\033[0m"
+    curl https://get.docker.com | bash -s docker --mirror Aliyun
+  fi
+  echo -e "\033[33m尝试安装Docker服务中，请耐心等待\033[0m"
+  sudo bash get-docker.sh
+  sudo rm get-docker.sh
+else
+  echo -e "\033[33mPing 测试失败。正在从备用镜像下载 Docker 安装脚本...\033[0m"
+  curl https://get.docker.com | bash -s docker --mirror Aliyun
+fi
 
-    # 检查 Docker 是否成功安装
-    if command -v docker &> /dev/null; then
-        echo "Docker 已成功安装。"
-        break
-    else
-        echo "Docker 安装失败，正在尝试重新安装..."
-        attempt=$((attempt+1))
-    fi
-done
+# 检查 docker 命令是否可用
+if command -v docker > /dev/null; then
+  echo "Docker 安装成功"
+  ## 取消docker开机自启
+  sudo systemctl disable docker
 
-if [ $attempt -eq 5 ]; then
-    echo "Docker 安装失败。请检查您的网络连接并重试。"
+  # 恢复 Docker 数据
+  echo "正在检查 Docker 是否安装并运行中..."
+  if command -v docker >/dev/null 2>&1 && sudo systemctl is-active --quiet docker; then
+      echo "Docker 安装并运行中，可以恢复 /var/lib/docker 目录"
+
+      # 备份目录路径
+      backup_dir="/root"
+
+      # 检查备份目录中是否存在 docker.tar 或 docker.tar.xz 文件
+      if [[ -f "$backup_dir/docker.tar" ]] || [[ -f "$backup_dir/docker.tar.xz" ]]; then
+          # 停止 Docker
+          echo "停止 docker 中"
+          sudo systemctl stop docker
+
+          # 解压缩 /var/lib/docker 目录，并使用 pv 命令显示进度
+          if [[ -f "$backup_dir/docker.tar" ]]; then
+              echo "正在恢复 /var/lib/docker 目录..."
+              sudo dd if="$backup_dir/docker.tar" status=progress | pv -q -L 10M | sudo tar -zxvf - -C /
+          elif [[ -f "$backup_dir/docker.tar.xz" ]]; then
+              echo "正在恢复 /var/lib/docker 目录..."
+              sudo dd if="$backup_dir/docker.tar.xz" status=progress | pv -q -L 10M | sudo tar -xJf - -C /
+          fi
+
+          # 检查 /root 目录中是否存在 docker.tar 或 docker.tar.xz 文件，并删除
+          if [ -f /root/docker.tar ]; then
+              rm -f /root/docker.tar
+              echo "已删除 /root/docker.tar 文件"
+          fi
+
+          if [ -f /root/docker.tar.xz ]; then
+              rm -f /root/docker.tar.xz
+              echo "已删除 /root/docker.tar.xz 文件"
+          fi
+
+      else
+          echo "备份目录中没有找到 docker.tar 或 docker.tar.xz 文件"
+      fi
+  else
+      echo "Docker 未安装或未运行"
+  fi
+
+else
+  echo -e "\033[33m尝试安装失败，请等待重启后终端输入 \033[32mz \033[33m继续安装docker\033[0m"
 fi
 
 function function1 {
@@ -805,7 +1044,7 @@ function function2 {
 
     download_file
     # 下载文件并将其命名为 "z"
-    wget https://raw.githubusercontent.com/xiezh123/132/main/1 -O /updata/z
+    wget https://raw.githubusercontent.com/xiezh123/132/main/1 -O /usr/local/bin/z
     
     # 赋予执行权限
     chmod +x /usr/local/bin/z
@@ -828,49 +1067,8 @@ else
 fi
 
 sleep 3
-# 恢复 Docker 数据
-echo "正在检查 Docker 是否安装并运行中..."
-if command -v docker >/dev/null 2>&1 && sudo systemctl is-active --quiet docker; then
-    echo "Docker 安装并运行中，可以恢复 /var/lib/docker 目录"
-
-    # 备份目录路径
-    backup_dir="/root"
-
-    # 检查备份目录中是否存在 docker.tar 或 docker.tar.xz 文件
-    if [[ -f "$backup_dir/docker.tar" ]] || [[ -f "$backup_dir/docker.tar.xz" ]]; then
-        # 停止 Docker
-        echo "停止 docker 中"
-        sudo systemctl stop docker
-
-        # 解压缩 /var/lib/docker 目录，并使用 pv 命令显示进度
-        if [[ -f "$backup_dir/docker.tar" ]]; then
-            echo "正在恢复 /var/lib/docker 目录..."
-            sudo dd if="$backup_dir/docker.tar" status=progress | pv -q -L 10M | sudo tar -zxvf - -C /
-        elif [[ -f "$backup_dir/docker.tar.xz" ]]; then
-            echo "正在恢复 /var/lib/docker 目录..."
-            sudo dd if="$backup_dir/docker.tar.xz" status=progress | pv -q -L 10M | sudo tar -xJf - -C /
-        fi
-
-        # 检查 /root 目录中是否存在 docker.tar 或 docker.tar.xz 文件，并删除
-        if [ -f /root/docker.tar ]; then
-            rm -f /root/docker.tar
-            echo "已删除 /root/docker.tar 文件"
-        fi
-
-        if [ -f /root/docker.tar.xz ]; then
-            rm -f /root/docker.tar.xz
-            echo "已删除 /root/docker.tar.xz 文件"
-        fi
-
-    else
-        echo "备份目录中没有找到 docker.tar 或 docker.tar.xz 文件"
-    fi
-else
-    echo "Docker 未安装或未运行"
-fi
 
 # 清理垃圾并压缩系统
-echo none > /sys/class/leds/green:internet/trigger && sleep 1
 sudo sh -c "echo timer > /sys/class/leds/blue\:wifi/trigger && echo 500 > /sys/class/leds/blue\:wifi/delay_on && echo 500 > /sys/class/leds/blue\:wifi/delay_off" && sleep 1
 echo "正在清理垃圾..."
 eval "$clean_commands" && sleep 2
@@ -888,7 +1086,11 @@ eval "$clean_commands" && sleep 1
 echo -e "\033[33;32m如需执行脚本，可以在终端输入：z\033[0m"
 echo none > /sys/class/leds/green:internet/trigger && sleep 1
 sed -i 's/^byobu-status-exec "top"/#byobu-status-exec "top"/' ~/.byobu/status && sleep 2
+#驱动服务
 byobu-enable && sleep 1
+启动 irqbalance 服务
+sudo sh -c "echo 'IRQBALANCE_ONESHOT=yes' >> /etc/default/irqbalance"
+sudo systemctl start irqbalance
 sudo rm /usr/local/bin/x
 sudo mv /updata/2 /usr/local/bin/d
 sudo chmod +x /usr/local/bin/d
@@ -897,8 +1099,78 @@ sudo rm -rf /updata
 sleep 1
 #创建docker数据映射目录
 ln -s /srv /root/容器映射目录
-# Reboot the system
-/sbin/reboot' > /updata/1
+sudo touch /var/log/up.log
+# 获取执行后的磁盘空间并保存到环境变量中
+export DF_AFTER=$(df -h /)
+
+# 计算磁盘空间变化情况
+before_space=$(echo "$DF_BEFORE" | awk 'NR==2{print $3}')
+after_space=$(echo "$DF_AFTER" | awk 'NR==2{print $3}')
+space_diff=$(echo "$after_space - $before_space" | bc)
+if (( $(echo "$space_diff > 0" | bc -l) )); then
+    echo "磁盘空间增加了 $space_diff"
+else
+    echo "磁盘空间减少了 $space_diff"
+fi
+
+current_time=$(date +%Y-%m-%d_%H:%M:%S)
+
+# 检查环境变量 MY_TIME
+if [ -n "$MY_TIME" ]; then
+  # 计算时间差
+  start_time=$(date -d "$MY_TIME" +%s)
+  end_time=$(date -d "$current_time" +%s)
+  duration=$((end_time - start_time))
+
+  # 将时间差写入日志文件
+  minutes=$((duration / 60))
+  seconds=$((duration % 60))
+fi
+
+# 将结果写入 /var/log/up.log 文件
+echo "执行时间：$MY_TIME" >> /var/log/up.log
+echo "磁盘空间变化情况：" >> /var/log/up.log
+echo "---执行前---" >> /var/log/up.log
+echo "$DF_BEFORE" >> /var/log/up.log
+echo "---执行后---" >> /var/log/up.log
+echo "$DF_AFTER" >> /var/log/up.log
+echo "完成时间：$current_time" >> /var/log/up.log
+echo "磁盘空间增加了 $space_diff，总共耗时${minutes}分${seconds}秒" >> /var/log/up.log
+' > /updata/1
+# 创建循环检查脚本
+echo '#!/bin/bash
+
+zero_count=0
+
+while true; do
+  if [ -f "/var/log/up.log" ]; then
+    # Reboot the system
+    sleep 5
+    /sbin/reboot
+    break
+  elif screen -ls | grep -q "update"; then
+    echo 0 > /sys/class/leds/green:internet/brightness
+    sleep 1
+    echo 255 > /sys/class/leds/green:internet/brightness
+    sleep 2
+    echo 0 > /sys/class/leds/green:internet/brightness
+    sleep 1
+    echo "1"
+    zero_count=0  # 输出了1，重置计数器
+  else
+    echo "0"
+    echo 255 > /sys/class/leds/green:internet/brightness
+    zero_count=$((zero_count + 1))  # 输出了0，计数器加1
+  fi
+
+  # 如果连续输出了5个0，停止循环并执行stop函数
+  if [ "$zero_count" -ge 5 ]; then
+    screen -dmS update bash -c "bash /updata/1"
+    break
+  fi
+
+  sleep 2
+done' > /updata/dog.sh
 
 # 定义文件路径
 FILE_PATH="/usr/local/bin/x"
@@ -908,7 +1180,64 @@ echo "screen -d -r update" > "$FILE_PATH"
 
 # 赋予可执行权限
 chmod +x "$FILE_PATH"
+chmod +x /updata/dog.sh
 #新建窗口
 screen -dmS update bash -c "bash /updata/1"
-sleep 2
+# 执行脚本
+sleep 1
+screen -dmS dog bash -c "bash /updata/dog.sh"
+sleep 1
 screen -d -r update
+#screen -d -r dog
+echo -e "\033[33;32m如需执行脚本，可以在终端输入：z\033[0m"
+
+}
+
+########################################################################################################################################################################################
+
+function ip2 {
+
+ping_attempts=5  # 连续稳定的ping尝试次数
+
+# 检查与raw.githubusercontent.com的连通性
+echo "正在检查与raw.githubusercontent.com的连通性..."
+ping_result=$(ping -c $ping_attempts raw.githubusercontent.com)
+
+if [ $? -eq 0 ]; then
+    echo "连通性稳定，开始拉取文件..."
+    # 使用curl尝试拉取文件
+    echo "正在使用curl拉取文件..."
+    curl -# -o /usr/local/bin/z https://raw.githubusercontent.com/xiezh123/132/main/1 2>&1
+    if [ $? -eq 0 ]; then
+        echo "文件拉取成功，并已重命名为z"
+    else
+        echo "使用curl拉取文件失败，尝试使用wget..."
+        # 使用wget尝试拉取文件
+        wget -q -O /usr/local/bin/z https://raw.githubusercontent.com/xiezh123/132/main/1
+        if [ $? -eq 0 ]; then
+            echo "文件拉取成功，并已重命名为z"
+        else
+            echo "文件拉取失败"
+        fi
+    fi
+else
+    echo "无法与raw.githubusercontent.com建立稳定的连接"
+    echo "Ping结果："
+    echo "$ping_result"
+fi
+
+chmod +x /usr/local/bin/z
+
+}
+########################################################################################################################################################################################
+
+version=$(cat /etc/debian_version)
+
+if [[ "$version" == "12"* ]]; then
+    echo "系统版本是 Debian 12。"
+    ip2
+else
+    ip1
+fi
+
+        
