@@ -495,6 +495,7 @@ elif [[ "$option" == "3a" ]]; then
   echo "请选择 LED 控制选项：（回车关闭）"
   echo "1. 保留WiFi（默认情况）"
   echo "2. 蓝绿互换"
+  echo "3. 关闭/自启"
   read -r led_option
   
   # 处理 LED 控制选项
@@ -508,6 +509,23 @@ elif [[ "$option" == "3a" ]]; then
       # LED 互换
       echo heartbeat > /sys/class/leds/blue\:wifi/trigger
       echo phy0tx > /sys/class/leds/green\:internet/trigger
+      ;;
+    3)
+      # LED 关闭/开启
+      # 读取 /etc/environment 文件中的 LED 环境变量的值
+      led_value=$(grep -oP "(?<=LED=)[0-1]" /etc/environment)
+      
+      if [[ "$led_value" == "1" ]]; then
+          # 将 LED 环境变量的值从 1 修改为 0
+          sudo sed -i 's/LED=1/LED=0/' /etc/environment
+          echo "开机自动关闭led"
+      elif [[ "$led_value" == "0" ]]; then
+          # 将 LED 环境变量的值从 0 修改为 1
+          sudo sed -i 's/LED=0/LED=1/' /etc/environment
+          echo "开机保持led开启"
+      else
+          echo "未找到相关配置，重新更新试试？"
+      fi
       ;;
     *)
       # 默认情况：关闭 LED
