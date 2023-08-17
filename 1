@@ -130,9 +130,10 @@ else
 
   # 检查 Docker 是否安装成功
   if command -v docker > /dev/null; then
+    systemctl disable docker
     echo -e "\033[32mDocker成功！请输入1后选择安装\033[0m"
   else
-    echo -e "\033[33mDocker 安装失败，请输入1或者回车后继续选择安装\033[0m"
+    echo -e "\033[33mDocker 安装失败，请输入1或者回车后继续选择安装或手动安装\033[0m"
   fi
 fi
 echo "请选择要执行的操作："
@@ -518,7 +519,7 @@ elif [[ "$option" == "3a" ]]; then
       if [[ "$led_value" == "1" ]]; then
           # 将 LED 环境变量的值从 1 修改为 0
           sudo sed -i 's/LED=1/LED=0/' /etc/environment
-          echo "开机自动关闭led"
+          echo "开机完成后关闭led"
       elif [[ "$led_value" == "0" ]]; then
           # 将 LED 环境变量的值从 0 修改为 1
           sudo sed -i 's/LED=0/LED=1/' /etc/environment
@@ -533,7 +534,6 @@ elif [[ "$option" == "3a" ]]; then
       echo 0 > /sys/class/leds/mmc0\:\:/brightness #红灯
       echo none > /sys/class/leds/blue\:wifi/trigger #蓝灯
       echo none > /sys/class/leds/green\:internet/trigger #绿灯
-      export LED=1
       ;;
   esac
 elif [[ "$option" == "3b" ]]; then 
