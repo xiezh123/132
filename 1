@@ -300,7 +300,7 @@ if [ "$option" == "1" ]; then
     wget https://get.casaos.io -O casaos.sh && bash casaos.sh
   elif [ "$install_option" == "h" ]; then
     echo "安装qiandao,IP:8923"
-    docker run --restart=always -d --name qiandao -p 8923:80 -v /srv/qiandao/config:/usr/src/app/config --cpus 3 \ a76yyyy/qiandao:lite-latest
+    docker run --restart=always -d --name qiandao -p 8923:80 -v $(pwd)/qiandao/config:/usr/src/app/config --cpus 3 a76yyyy/qiandao:lite-latest
   elif [ "$install_option" == "i" ]; then
     echo "安装网易云音乐解灰,代理端口6666"
     # athr=nondanee && img=unblockneteasemusic && \
