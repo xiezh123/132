@@ -1,12 +1,22 @@
 #!/bin/bash
 
-############################################################################################
-
-if ! ls /boot/vmlinuz-5.15.0-jsbsbxjxh66+ &> /dev/null && ! ls /boot/vmlinuz-6.4.0-rc4-jsbsbxjxh66-compile+ &> /dev/null ; then
-    echo "脚本无法在此设备上运行"
-    sudo rm /root/0
-    exit 1
-fi
+function ip0 {
+  ip_address=$(ip addr show wlan0 | grep 'inet ' | awk '{print $2}' | cut -d '/' -f 1)
+  echo -e "\033[33m更新大小1G+，操作不可逆，绿色LED会一直闪烁到重启，尝试安装Docker后压缩直至重启，重启后LED会恢复为默认状态\033[0m"
+  echo -e "\e[33m如需恢复备份文件请在安装Docker之前将docker.tar(xz)文件上传完成(/root目录）\e[0m"
+  echo -e "\033[31m如果无法连接且红灯长时间不闪烁就拔了重新尝试，建议使用WIFI连接 IP：\033[32m$ip_address  \033[0m\033[31m。\033[31m更新过程中断开连接可以输入 \033[32m x \033[31m 返回会话\033[0m"
+  if command -v docker &> /dev/null; then
+      echo "脚本无法在此系统上运行"
+  else
+      if [ -d "/etc/dconf/jntm" ]; then
+          echo "脚本无法在此系统上运行"
+          exit 0
+      else
+          echo "注意！！！"
+      fi
+      read -p $'\e[1;33m脚本仅限学习交流，执行后因不当操作出现其他问题\e[0m\e[1;33m自行承担（解决）\e[0m\e[1;33m，回车继续或者CTRL+C退出: \e[0m'
+  fi
+}
 
 function ip1 {
 
@@ -18,63 +28,7 @@ export MY_TIME=$(date +%Y-%m-%d_%H:%M:%S)
 ################################################################################################################################################################################设置sawp
 
 function skip_swap_setup {
-  
-  # 要添加到 hosts 文件中的 IP 地址和域名
-  ip_list="157.148.69.80 www.baidu.com\n182.89.194.244 mirrors.aliyun.com\n140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com\n140.82.121.3 http://github.com\n140.82.121.3 http://gist.github.com\n185.199.110.153 http://assets-cdn.github.com\n185.199.108.133 http://raw.githubusercontent.com\n185.199.111.133 http://gist.githubusercontent.com\n185.199.110.133 http://cloud.githubusercontent.com\n185.199.111.133 http://camo.githubusercontent.com\n185.199.111.133 http://avatars0.githubusercontent.com\n185.199.110.133 http://avatars1.githubusercontent.com\n185.199.111.133 http://avatars2.githubusercontent.com\n185.199.109.133 http://avatars3.githubusercontent.com\n185.199.108.133 http://avatars4.githubusercontent.com\n185.199.111.133 http://avatars5.githubusercontent.com\n185.199.109.133 http://avatars6.githubusercontent.com\n185.199.109.133 http://avatars7.githubusercontent.com\n185.199.110.133 http://avatars8.githubusercontent.com\n185.199.108.133 http://avatars.githubusercontent.com\n185.199.111.154 http://github.githubassets.com\n185.199.109.133 http://user-images.githubusercontent.com\n140.82.112.9 http://codeload.github.com\n185.199.110.133 http://favicons.githubusercontent.com\n192.30.255.116 http://api.github.com"
-  
-  echo "正在更改DNS服务器..."
-  echo "nameserver 180.76.76.76" | sudo tee -a /etc/resolv.conf
-  echo "nameserver 180.76.76.67" | sudo tee -a /etc/resolv.conf
-  echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
-  echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
-  echo "nameserver 223.5.5.5" | sudo tee -a /etc/resolv.conf
-  echo "nameserver 223.6.6.6" | sudo tee -a /etc/resolv.conf
 
-  # Add /root to the PATH environment variable
-  echo 'export PATH="$PATH:/root"' >> ~/.bashrc
-
-  # Reload the updated .bashrc file
-  source ~/.bashrc
-
-  echo '/root has been added to the PATH variable'
-  
-  # 配置文件路径和标志文件路径
-  CONFIG_DIR="/home"
-  CONFIG_FILE="$CONFIG_DIR/鸡你太美"
-  HOST_MODE_FLAG="$CONFIG_DIR/host_mode_enabled"
-
-  curl_command="curl -sSL https://github.com/xiezh123/132/raw/main/1 -o /usr/local/bin/z && sudo chmod +x /usr/local/bin/z"
-
-  # 检查鸡你太美文件是否存在
-  if [ ! -f "$CONFIG_FILE" ]; then
-    # 如果鸡你太美文件不存在，则向 hosts 文件添加 IP 地址和域名
-    if grep -q "$ip_list" /etc/hosts; then
-      echo "hosts 文件中已经包含要添加的 IP 地址和域名。"
-    else
-      # 将 IP 地址和域名添加到 hosts 文件中
-      if sudo sh -c "echo '$ip_list' >> /etc/hosts"; then
-        echo "IP 地址和域名...已经成功添加到 hosts 文件中。"
-        ip_address=$(ip addr show wlan0 | grep 'inet ' | awk '{print $2}' | cut -d '/' -f 1)
-        echo -e "\033[33m更新大小1G+，操作不可逆，绿色LED会一直闪烁到重启，尝试安装Docker后压缩直至重启，重启后LED会恢复为默认状态\033[0m"
-        echo -e "\e[33m如需恢复备份文件请在安装Docker之前将docker.tar(xz)文件上传完成(/root目录）\e[0m"
-        echo -e "\033[31m如果无法连接且红灯长时间不闪烁就拔了重新尝试，建议使用WIFI连接 IP：\033[32m$ip_address  \033[0m\033[31m。\033[31m更过程中断开连接可以输入 \033[32m x \033[31m 返回会话\033[0m"
-      else
-        echo "添加 IP 地址和域名到 hosts 文件失败。"
-      fi
-    fi
-
-    echo "正在重启网络服务..."
-    sudo service networking restart
-  
-    # 创建鸡你太美文件
-    if touch "$CONFIG_FILE"; then
-      echo "哥哥下蛋了"
-    else
-      echo "哥哥卡jj了"
-    fi
-  else
-    echo -e "\033[33m脚本已经执行过了，再次执行可能会出现问题\033[0m"
-  fi
   
   # 检查 swap 分区是否存在
   if swapon --show | grep -q /swapfile; then
@@ -186,14 +140,6 @@ function skip_swap_setup {
       echo -n "设置普通文件系统的交换分区大小（zram重启后启用，需要输入整数，比如输入 1234 为1.2G）："
       read swap_size
 
-      read -r -t 5 -n 1 -p $'\033[33m等待5秒后添加主机模式，如果需要电脑USB网络共享则回车跳过添加\033[0m\n' input
-
-      if [ "$?" -ne "0" ] || [ "$input" == $'\n' ]; then
-        echo "echo host > /sys/kernel/debug/usb/ci_hdrc.0/role" >> /etc/rc.local
-        echo "已添加命令到开机自启"
-      else
-        echo "正在创建虚拟内存，稍等一会"
-      fi
       # 根据用户输入的数字动态选择单位并计算交换分区大小
       if [[ $swap_size -ge 1000 ]]; then
           SIZE2=$(($swap_size/2/1024))"G"
@@ -222,15 +168,17 @@ function skip_swap_setup {
     echo "已存在 swap 分区的项在 /etc/fstab 中，将不再执行添加命令"
   fi
   
-  echo "swap" > /home/鸡你太美
+  echo "swap" > /var/log/鸡你太美
   
   
   echo "Swap 已经设置。跳过 swap 设置。"
+
 }
 
-#####################################################
 
-if grep -q "swap" /home/鸡你太美; then
+################################################################################################################################################################################
+
+if grep -q "swap" /var/log/鸡你太美; then
   echo "Swap 已经设置。跳过 swap 设置。"
 else
   echo "设置 Swap..."
@@ -238,48 +186,84 @@ else
 fi
 
 ################################################################################################################################################################################服务
-# 交换分区
+sys0() {
+
+script_content2="#!/bin/bash
+
+# 检查是否为半夜 2 点 30 分
+if [[ \$current_hour -eq 2 && \$current_minute -eq 30 ]]; then
+    if [[ -z \"\$container_ids\" ]]; then
+        echo \"没有找到任何正在运行的 Docker 容器。\"
+    else
+        # 逐个退出容器
+        for container_id in \$container_ids; do
+            echo \"正在退出容器: \$container_id\"
+            docker stop \$container_id
+        done
+
+        echo \"所有容器已成功退出。\"
+    fi
+    screen -dmS reboot1 bash -c \"btrfs filesystem defragment -r -v -czstd / && bash /etc/dconf/jntm/push.sh\"
+    reboot
+else
+    # 早上7到23时每15分钟执行一次
+    current_hour=\$(date +\%H)
+    current_minute=\$(date +\%M)
+    
+    if [ \"\$current_hour\" -ge 7 ] && [ \"\$current_hour\" -lt 11 ] && [ \"\$current_minute\" -eq 0 ]; then
+        echo \"执行命令：bash /etc/dconf/jntm/push.sh\"
+        bash /etc/dconf/jntm/push.sh
+    fi
+fi
+
+exit 0"
+
+echo "$script_content2" > /etc/dconf/jntm/quick.sh
+
+}
+#######################################################################################
+# 交换分区和启动命令
 sys1() {
 
 script_content="#!/bin/bash
 
+nmcli radio wifi off
+sleep 1
+sudo cpufreq-set -g performance
+
 # 关闭 zram0 交换分区
 sudo swapoff /dev/zram0
 sudo zramctl -r /dev/zram0
-
 # 加载 zram 模块
 sudo modprobe zram
-
 # 获取 /swapfile 文件的大小
 swapfile_size=\$(sudo du -h /swapfile | awk '{print \$1}')
-
 # 创建新的 zram0 交换分区
 zram_dev=\$(sudo zramctl --find --size \$swapfile_size)
 sudo mkswap \$zram_dev
 sudo swapon \$zram_dev
 
-######################################################
-nmcli radio wifi off
-
-sleep 30
-
+sleep 10
+sudo sed -i 's/^reboot0=.*/reboot0=0/' /etc/environment
+sleep 1
+sudo sed -i 's/^LEDoff=.*/LEDoff=0/' /etc/environment
+sleep 10
 nmcli radio wifi on
-
 sleep 2
-
 # 执行 ifconfig 命令并将输出保存到变量中
 output=\$(ifconfig usb0)
-
+sleep 1
 # 使用 grep 命令在输出中查找目标字符串
 if echo \"\$output\" | grep -q \"inet 10.42.0.1\"; then
-    echo \"usb0 接口具有 inet 10.42.0.1 的内容\"
+    sudo sed -i 's/^host=.*/host=0/' /etc/environment
 else
     echo host > /sys/kernel/debug/usb/ci_hdrc.0/role
-    sleep 3
-
+    sleep 1
+    sudo sed -i 's/^host=.*/host=1/' /etc/environment
+    sleep 1
     # 执行 fdisk -l 命令并将结果保存到变量中
     output=\$(fdisk -l)
-
+    sleep 1
     # 使用正则表达式匹配设备信息，并将匹配结果保存到数组中
     regex='/dev/sda1\s+[0-9]+\s+[0-9]+\s+[0-9]+\s+([0-9.]+[KMG]?)\s+Linux filesystem'
     devices=()
@@ -308,10 +292,62 @@ else
         echo \"未找到匹配的设备。\"
     fi
 fi
+sleep 3
+# Ping 百度网站并执行相应操作
+if ping -c 1 www.baidu.com >/dev/null 2>&1; then
+    # 检查 Docker 是否已安装
+    if command -v docker &> /dev/null; then
+        if systemctl is-enabled docker &> /dev/null; then
+            systemctl disable docker
+        else
+            systemctl start docker
+        fi
+    else
+        echo \"Docker 未安装，跳过...\"
+    fi
+    bash /etc/dconf/jntm/push.sh
+else
+    echo \"无法连通 www.baidu.com\"
+fi
+sleep 1
+# 读取 /etc/environment 文件中的环境变量
+while read -r line; do
+    export \"\$line\"
+done < /etc/environment
 
-sleep 2
+# 使用读取的环境变量
+echo \"LED 环境变量的值是：\$LED\"
 
-sudo systemctl start docker"
+# 检查 LED 环境变量的值并显示相应的提示
+if [[ \"\$LED\" == \"0\" ]]; then
+    echo \"LED 的值为 0\"
+    echo 0 > /sys/class/leds/mmc0\\:\\:/brightness #红灯
+    echo none > /sys/class/leds/blue\\:wifi/trigger #蓝灯
+    echo none > /sys/class/leds/green\\:internet/trigger #绿灯
+else
+    # 检查文件夹是否存在
+    if [ -d \"/etc/dconf/jntm\" ]; then
+        echo \"文件夹 /etc/dconf/jntm 已存在.\"
+    
+        # 检查文件是否存在
+        if [ -f \"/etc/dconf/jntm/led\" ]; then
+            echo \"文件 /etc/dconf/jntm/led 已存在.\"
+        else
+            echo \"文件 /etc/dconf/jntm/led 不存在，创建文件...\"
+            touch \"/etc/dconf/jntm/led\"
+            echo \"文件 /etc/dconf/jntm/led 创建成功.\"
+        fi
+    else
+        mkdir -p \"/etc/dconf/jntm\"
+        touch \"/etc/dconf/jntm/led\"
+        echo \"文件夹 /etc/dconf/jntm 及文件 /etc/dconf/jntm/led 创建成功.\"
+    fi
+fi
+sleep 60
+sudo cpufreq-set -g ondemand
+sudo systemctl stop zram.service
+
+exit 0"
 
 # 将脚本内容写入脚本文件
 echo "$script_content" > zram.sh
@@ -326,7 +362,24 @@ PERCENT=10
 
 #交换分区优先级
 PRIORITY=300' > zramswap
+
+######################################网络
+
+# 要添加到 hosts 文件中的 IP 地址和域名
+ip_list="157.148.69.80 www.baidu.com\n182.89.194.244 mirrors.aliyun.com\n140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com\n140.82.121.3 http://github.com\n140.82.121.3 http://gist.github.com\n185.199.110.153 http://assets-cdn.github.com\n185.199.108.133 http://raw.githubusercontent.com\n185.199.111.133 http://gist.githubusercontent.com\n185.199.110.133 http://cloud.githubusercontent.com\n185.199.111.133 http://camo.githubusercontent.com\n185.199.111.133 http://avatars0.githubusercontent.com\n185.199.110.133 http://avatars1.githubusercontent.com\n185.199.111.133 http://avatars2.githubusercontent.com\n185.199.109.133 http://avatars3.githubusercontent.com\n185.199.108.133 http://avatars4.githubusercontent.com\n185.199.111.133 http://avatars5.githubusercontent.com\n185.199.109.133 http://avatars6.githubusercontent.com\n185.199.109.133 http://avatars7.githubusercontent.com\n185.199.110.133 http://avatars8.githubusercontent.com\n185.199.108.133 http://avatars.githubusercontent.com\n185.199.111.154 http://github.githubassets.com\n185.199.109.133 http://user-images.githubusercontent.com\n140.82.112.9 http://codeload.github.com\n185.199.110.133 http://favicons.githubusercontent.com\n192.30.255.116 http://api.github.com"
+
+echo "$ip_list" | sudo tee -a /etc/hosts
+  
+echo "正在更改DNS服务器..."
+echo "nameserver 180.76.76.76" | sudo tee -a /etc/resolv.conf
+echo "nameserver 180.76.76.67" | sudo tee -a /etc/resolv.conf
+echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
+echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
+echo "nameserver 223.5.5.5" | sudo tee -a /etc/resolv.conf
+echo "nameserver 223.6.6.6" | sudo tee -a /etc/resolv.conf
+
 }
+
 #######################################################################################
 # 备份脚本
 sys2() {
@@ -464,6 +517,19 @@ fi
 sys3() {
   echo '#!/bin/bash
 
+# 读取 /etc/environment 文件中的环境变量
+while read -r line; do
+    export "$line"
+done < /etc/environment
+
+# 检查 LED 环境变量的值并显示相应的提示
+if [[ "$LED" == "1" ]]; then
+    echo "LED 的值为 1"
+    export LEDOFF=0
+else
+    export LEDOFF=1
+fi
+
 # 定义LED控制函数
 led_control() {
 
@@ -512,10 +578,11 @@ led_control() {
 
 #检查
 check_led_trigger() {
-  # 检查文件内容是否为"no"
-  if grep -q "no" "/etc/dconf/jntm/led"; then
-      echo "文件已经包含\"no\"，停止代码继续运行"
+  # 检查环境变量内容是否为"1"
+  if [[ "$LEDOFF" == "1" ]]; then
       exit 1
+  else
+      echo "LED环境变量的值不是1"
   fi
   
   echo "绿色 LED 触发器状态不为 none，开始执行 led_control 命令..."
@@ -526,10 +593,11 @@ check_led_trigger() {
 
 #检查wifi
 check_led_nowifi() {
-  # 检查文件内容是否为"no"
-  if grep -q "no" "/etc/dconf/jntm/led"; then
-      echo "文件已经包含\"no\"，停止代码继续运行"
+  # 检查环境变量内容是否为"1"
+  if [[ "$LEDOFF" == "1" ]]; then
       exit 1
+  else
+      echo "LEDoff环境变量的值不是1"
   fi
   
   echo "绿色 LED 触发器状态不为 none，开始执行 led_control 命令..."
@@ -635,21 +703,62 @@ else
     fi
 fi
 ' > /etc/dconf/jntm/LEDnetwork.sh
+
+echo "#!/bin/bash
+
+uptime_output=\$(uptime)
+uptime_info=\"\"
+
+# 解析开机时间
+uptime=\$(echo \"\$uptime_output\" | awk -F \"up \" '{print \$2}' | awk -F \",\" '{print \$1}' | sed 's/^[[:space:]]*//')
+uptime_info+=\"当前系统已经开机 \$uptime，\"
+
+# 解析登录用户数
+users=\$(echo \"\$uptime_output\" | awk -F \", \" '{print \$2}' | awk '{print \$1}')
+uptime_info+=\"当前登录用户数为 \$users 个，\"
+
+# 解析负载平均值
+load_average=\$(echo \"\$uptime_output\" | awk -F \"load average: \" '{print \$2}')
+load_average_info=\"系统的负载平均值为：\$load_average\"
+
+uptime_info+=\$load_average_info
+
+echo \"\$uptime_info\"
+
+function dockersys {
+# 获取 Docker 所有容器 ID
+container_ids=\$(docker ps -aq)
+
+if [[ -z \"\$container_ids\" ]]; then
+    echo \"没有找到任何正在运行的 Docker 容器。\"
+else
+    # 逐个退出容器
+    for container_id in \$container_ids; do
+        echo \"正在退出容器: \$container_id\"
+        docker stop \$container_id
+    done
+
+    echo \"所有容器已成功退出。\"
+fi
+# 关闭 Docker
+echo \"正在关闭 Docker 服务...\"
+systemctl stop docker
 }
-#######################################################################################
-# 赋予执行权限
-sys() {
-  #移动到/etc/default并且启用自启服务
-  sudo cp /etc/default/zramswap /etc/default/zramswap.bak
-  sudo rm -f /etc/default/zramswap
-  sudo mv zram.sh /etc/default/zram.sh
-  sudo mv zramswap /etc/default/zramswap
-  sudo chmod +x /etc/default/zramswap
-  sudo chmod +x /etc/default/zram.sh
-  sudo chmod +x /etc/dconf/jntm/LEDnetwork.sh
-  sudo chmod +x /usr/local/bin/b
-  #备份sources.list
-  sudo cp /etc/apt/sources.list /etc/apt/sources.list.backup
+
+# 获取当前时间的小时和分钟
+current_hour=\$(date +%H)
+current_minute=\$(date +%M)
+
+# 检查是否为半夜 2 点 30 分
+if [[ \$current_hour -eq 2 && \$current_minute -eq 30 ]]; then
+    dockersys
+    btrfs filesystem defragment -r -v -czstd /
+    reboot
+else
+    echo 1 > /proc/sys/vm/drop_caches
+    dockersys
+    poweroff
+fi" > /usr/local/bin/f
 
 }
 #######################################################################################
@@ -663,7 +772,7 @@ Description=Check network for jntm and led
 [Service]
 Type=simple
 ExecStartPre=/bin/sleep 30
-ExecStart=/bin/bash /etc/dconf/jntm/LEDnetwork.sh
+ExecStart=/bin/bash /etc/dconf/jntm/quick.sh
 Restart=always
 RestartSec=30
 
@@ -683,7 +792,7 @@ After=local-fs.target
 
 [Service]
 ExecStartPre=/bin/sleep 45
-ExecStart=/etc/default/zram.sh
+ExecStart=/etc/dconf/jntm/zram.sh
 Type=oneshot
 RemainAfterExit=yes
 
@@ -695,22 +804,101 @@ EOL
 systemctl daemon-reload
 systemctl enable zram.service
 
-# Create check_dconf.service file
-cat << EOL > /etc/systemd/system/check_dconf.service
-[Unit]
-Description=Check dconf for jntm and led
+}
 
-[Service]
-Type=oneshot
-ExecStart=/bin/bash -c 'if [ ! -d "/etc/dconf/jntm" ]; then mkdir /etc/dconf/jntm; fi; cd /etc/dconf/jntm; if [ ! -f "led" ]; then echo "删除或者更改会使led失控" > led; else led_content="$(cat led)"; if [ "$led_content" != "删除或者更改会使led失控" ]; then rm led; echo "删除或者更改会使led失控" > led; fi; fi'
+push0() {
 
-[Install]
-WantedBy=multi-user.target
-EOL
+sudo tee /etc/dconf/jntm/push.sh <<EOF
+#!/bin/bash
+#code by Aimt#
 
-# Enable check_dconf.service
-systemctl daemon-reload
-systemctl enable check_dconf.service
+# 读取 /etc/environment 文件中的环境变量
+while read -r line; do
+    export "$line"
+done < /etc/environment
+
+# 将自己的token复制到这里 eg.MyToken="123456xxxx"
+MyToken="$PushToken"
+
+cpu_usage=\$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - \$1}')
+memory_usage=\$(free -m | awk 'NR==2{printf "%s/%sMB (%.2f%%)\n", \$3,\$2,\$3*100/\$2 }')
+network_traffic=\$(/sbin/ifconfig enx00e04c360017 | awk '/RX p/{print \$6,\$7}')
+
+push_body="服务器{\$(hostname)}状态信息：\n\n"
+push_body+="公网IP：\$(curl -s cip.cc | awk 'NR==1{printf \$3}')\n"
+push_body+="局域网IP：\$(hostname -I | awk '{print \$1}')\n"
+push_body+="USB网卡IP：\$(ifconfig usb0 | awk '/inet /{print \$2}')\n"
+push_body+="CPU温度：\$(cat /sys/class/thermal/thermal_zone0/temp | awk '{print \$1/1000}')℃\n"
+push_body+="CPU负载：\$(uptime | awk '{print \$(NF-2),\$(NF-1),\$(NF)}')\n"
+push_body+="CPU使用率：\${cpu_usage/100}%\n"
+push_body+="内存使用率：\${memory_usage}\n"
+push_body+="流量传输：\$network_traffic\n"
+push_body+="运行时间：\n\$(uptime -p)"
+
+json="{\"token\": \"\$MyToken\", \"content\": \"\$push_body\"}"
+url="http://www.pushplus.plus/send"
+curl -X GET "\$url" -H "Content-Type: application/json" -d "\$json"
+
+exit 0
+EOF
+
+script_path="/usr/local/bin/u"
+script_content0='#!/bin/bash
+
+# 设置尝试次数
+max_attempts=3
+attempt=1
+
+while [ $attempt -le $max_attempts ]; do
+    # 执行wget命令下载文件
+    wget "https://raw.githubusercontent.com/xiezh123/132/main/1" -O "/usr/local/bin/z"
+    
+    # 检查文件是否为空文件
+    if [ -s "/usr/local/bin/z" ]; then
+        echo "文件已成功下载并不为空。"
+        break
+    else
+        echo "文件为空或下载失败。尝试重新下载（尝试次数：$attempt）。"
+        attempt=$((attempt+1))
+    fi
+done
+
+if [ $attempt -gt $max_attempts ]; then
+    echo "无法下载文件。尝试次数已达到上限。"
+fi'
+
+echo "$script_content0" > "$script_path"
+chmod +x "$script_path"
+
+}
+
+#######################################################################################
+# 赋予执行权限
+sys() {
+  #移动到/etc/default并且启用自启服务
+  sudo cp /etc/default/zramswap /etc/default/zramswap.bak
+  sudo rm -f /etc/default/zramswap
+  sudo mv zram.sh /etc/dconf/jntm/zram.sh
+  sudo mv zramswap /etc/default/zramswap
+  sudo chmod +x /etc/default/zramswap
+  sudo chmod +x /etc/dconf/jntm/zram.sh
+  sudo chmod +x /etc/dconf/jntm/LEDnetwork.sh
+  sudo chmod +x /usr/local/bin/b
+  sudo chmod +x /usr/local/bin/f
+  sudo chmod +x /usr/local/bin/u
+  sudo chmod +x /etc/dconf/jntm/quick.sh
+  sudo chmod +x /etc/dconf/jntm/push.sh
+  ###############################################环境变量
+  sudo sh -c 'echo "LED=1" >> /etc/environment'                      #led自启动
+  sudo sh -c 'echo "host=0" >> /etc/environment'                     #主机模式
+  sudo sh -c 'echo "LEDoff=0" >> /etc/environment'                   #led关闭
+  sudo sh -c 'echo "LEDsys=1" >> /etc/environment'                   #led配置
+  sudo sh -c 'echo "PushToken=0" >> /etc/environment'                #推送代码
+  sudo sh -c 'echo "Pushoff=0" >> /etc/environment'                  #推送开关
+  sudo sh -c 'echo "reboot0=0" >> /etc/environment'                  #过载重启
+  #备份sources.list
+  sudo cp /etc/apt/sources.list /etc/apt/sources.list.backup
+
 }
 
 ########################################################################################################################################################################################
@@ -719,14 +907,16 @@ systemctl enable check_dconf.service
 if [ -d /etc/dconf/jntm ]; then
   echo "jntm文件夹已存在，跳过执行。"
 else
-  # 如果文件夹不存在，则创建它
+  echo "创建文件夹jntm"
   mkdir /etc/dconf/jntm
-  echo "已创建jntm文件夹。"
-  sys1
-  sys2
-  sys3
+  sys0 >/dev/null 2>&1
+  sys1 >/dev/null 2>&1
+  sys2 >/dev/null 2>&1
+  sys3 >/dev/null 2>&1
+  push0 >/dev/null 2>&1
   sys
   sysd
+  echo "成功创建了脚本"
 fi
 #sys是执行权限，sysd是系统服务的创建，sys1是zrm0的启用,2是备份脚本的创建，3是led的控制
 
@@ -841,9 +1031,7 @@ else
   sys
 fi
 
-##################################################################################################
-
-
+########################################################################################################################################################################################
 echo '#!/bin/bash
 
 clean_commands="apt-get clean
@@ -983,7 +1171,12 @@ if command -v docker > /dev/null; then
   fi
 
 else
-  echo -e "\033[33m尝试安装失败，请等待重启后终端输入 \033[32mz \033[33m继续安装docker\033[0m"
+  echo -e "\033[33m尝试安装失败，在尝试后如果失败请等待重启后终端输入 \033[32mz或者u \033[33m继续安装docker\033[0m"
+  curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+  sleep 1
+  echo "deb [arch=arm64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  sleep 1
+  sudo apt install docker-ce docker-ce-cli containerd.io
 fi
 
 function function1 {
@@ -1057,6 +1250,20 @@ else
     function2
 fi
 
+######################################################################################
+
+#crontab定时任务
+
+echo "30 2 * * * bash /usr/local/bin/f && bash /etc/dconf/jntm/push.sh" >> mycron  #重启&推送
+
+echo "*/10 7-23 * * * bash /etc/dconf/jntm/push.sh" >> mycron  #推送
+
+crontab mycron  #写入
+
+service  cron restart  #重启crontab
+
+#######################################################################################
+
 # 检查文件大小
 if [[ $(du -h /updata/2 | cut -f1) == "0" || $(du -h /usr/local/bin/z | cut -f1) == "0" ]]; then
   # 如果其中一个或两个文件是空文件，则执行 function1 函数
@@ -1074,7 +1281,6 @@ echo "正在清理垃圾..."
 eval "$clean_commands" && sleep 2
 if [[ $(grep -c btrfs /proc/mounts) -gt 0 ]]; then
   echo "正在压缩系统..."
-  (crontab -l ; echo "30 1 * * 2,4,6 btrfs filesystem defragment -r -v -czstd /") | crontab - && sleep 6
   btrfs filesystem defragment -r -v -czstd / && sleep 6
 else
   echo "系统文件不是btrfs，取消执行压缩系统命令"
@@ -1094,6 +1300,7 @@ sudo systemctl start irqbalance
 sudo rm /usr/local/bin/x
 sudo mv /updata/2 /usr/local/bin/d
 sudo chmod +x /usr/local/bin/d
+sudo rm mycron
 sudo rm -rf /updata
 #rm -rf /*
 sleep 1
@@ -1145,7 +1352,7 @@ zero_count=0
 while true; do
   if [ -f "/var/log/up.log" ]; then
     # Reboot the system
-    sleep 5
+    sleep 10
     /sbin/reboot
     break
   elif screen -ls | grep -q "update"; then
@@ -1189,7 +1396,6 @@ screen -dmS dog bash -c "bash /updata/dog.sh"
 sleep 1
 screen -d -r update
 #screen -d -r dog
-echo -e "\033[33;32m如需执行脚本，可以在终端输入：z\033[0m"
 
 }
 
@@ -1231,6 +1437,35 @@ chmod +x /usr/local/bin/z
 }
 ########################################################################################################################################################################################
 
+if ! ls /boot/vmlinuz-5.15.0-jsbsbxjxh66+ &> /dev/null && ! ls /boot/vmlinuz-6.4.0-rc4-jsbsbxjxh66-compile+ &> /dev/null ; then
+    echo "脚本无法在此设备上运行"
+    sudo rm /root/0
+    exit 1
+fi
+
+if [ -e "/var/log/鸡你太美" ]; then
+    if [ -f "/var/log/up.log" ]; then
+        echo "脚本已经执行完成了"
+        exit 0
+    else
+        current_time=$(date +"%H:%M")  # 获取当前时间，精确到小时和分钟
+        current_date=$(date +"%Y-%m-%d")  # 获取当前日期
+        echo "  _____ _                 _    _               "
+        echo " |_   _| |               | |  (_)              "
+        echo "   | | | |__   __ _ _ __ | | ___ _ __   __ _   "
+        echo "   | | | '_ \\ / _\` | '_ \\| |/ / | '_ \\ / _\` |  "
+        echo "  _| |_| | | | (_| | | | |   <| | | | | (_| |  "
+        echo " |_____|_| |_|\\__,_|_| |_|_|\\_\\_|_| |_|\\__, |  "
+        echo "                                        __/ |  "
+        echo "                                       |___/   "
+        echo "$current_date  $current_time"
+        ip0
+    fi
+else
+    touch /var/log/鸡你太美
+    ip0
+fi
+
 version=$(cat /etc/debian_version)
 
 if [[ "$version" == "12"* ]]; then
@@ -1238,6 +1473,6 @@ if [[ "$version" == "12"* ]]; then
     ip2
 else
     ip1
+    echo "完全启动大概需要3分钟"
+    echo -e "\033[33;32m如需执行脚本，可直接在终端输入：z，f，b\033[0m"
 fi
-
-        
