@@ -598,5 +598,5 @@ elif [[ "$option" == "3d" ]]; then
   done <<< "$container_info"
 else
   echo "选项不存在"
-  z
+  curl -sS -O https://raw.githubusercontent.com/kejilion/sh/main/kejilion.sh && chmod +x kejilion.sh && ./kejilion.sh
 fi
