@@ -60,15 +60,24 @@ sudo mkswap \$zram_dev
 sudo swapon \$zram_dev
 
 sleep 10
+
 sudo sed -i 's/^reboot0=.*/reboot0=0/' /etc/environment
+
 sleep 1
+
 sudo sed -i 's/^LEDoff=.*/LEDoff=0/' /etc/environment
+
 sleep 10
+
 nmcli radio wifi on
+
 sleep 2
+
 # 执行 ifconfig 命令并将输出保存到变量中
 output=\$(ifconfig usb0)
+
 sleep 1
+
 # 使用 grep 命令在输出中查找目标字符串
 if echo \"\$output\" | grep -q \"inet 10.42.0.1\"; then
     sudo sed -i 's/^host=.*/host=0/' /etc/environment
@@ -108,7 +117,9 @@ else
         echo \"未找到匹配的设备。\"
     fi
 fi
+
 sleep 3
+
 # Ping 百度网站并执行相应操作
 if ping -c 1 www.baidu.com >/dev/null 2>&1; then
     # 检查 Docker 是否已安装
@@ -125,7 +136,9 @@ if ping -c 1 www.baidu.com >/dev/null 2>&1; then
 else
     echo \"无法连通 www.baidu.com\"
 fi
+
 sleep 1
+
 # 读取 /etc/environment 文件中的环境变量
 while read -r line; do
     export \"\$line\"
@@ -705,7 +718,26 @@ sys() {
   sudo chmod +x /etc/dconf/jntm/quick.sh
   sudo chmod +x /etc/dconf/jntm/push.sh
   ###############################################环境变量
-  sudo sh -c 'echo "LED=1" >> /etc/environment'                      #led自启动
+  file_path="/root/wifi"
+  line_number=4
+
+  # 检查文件是否存在
+  if [ -f "$file_path" ]; then
+      # 获取第四行内容
+      line_content=$(sed -n "${line_number}p" "$file_path")
+
+      if [ -z "$line_content" ] || [ "$line_content" -ne 0 ]; then
+          # 第四行为空或不为 0，执行 "LED=1" 的写入操作
+          sudo sh -c 'echo "LED=1" >> /etc/environment'
+          echo "已向 /etc/environment 写入 LED=1"
+      else
+          # 第四行为 0，执行 "LED=0" 的写入操作
+          sudo sh -c 'echo "LED=0" >> /etc/environment'
+          echo "已向 /etc/environment 写入 LED=0"
+      fi
+  else
+      echo "文件 $file_path 不存在"
+  fi                                                                 #led自启动
   sudo sh -c 'echo "host=0" >> /etc/environment'                     #主机模式
   sudo sh -c 'echo "LEDoff=0" >> /etc/environment'                   #led关闭
   sudo sh -c 'echo "LEDsys=1" >> /etc/environment'                   #led配置
@@ -1221,6 +1253,8 @@ if [[ "$version" == "12"* ]]; then
     echo "系统版本是 Debian 12。"
     ip2
 else
+    echo -e '#!/bin/sh -e\n\nsleep 3\n\n# Ping 百度网站并执行相应操作\nif ping -c 1 www.baidu.com >/dev/null 2>&1; then\n    # 检查 Docker 是否已安装\n    if command -v docker &> /dev/null; then\n        if systemctl is-enabled docker &> /dev/null; then\n            systemctl disable docker\n        else\n            systemctl start docker\n        fi\n    else\n        echo "Docker 未安装，跳过..."\n    fi\n    bash /etc/dconf/jntm/push.sh\nelse\n    echo "无法连通 www.baidu.com"\nfi\n\nexit 0' | sudo tee /etc/rc.local
+    sudo chmod +x /etc/rc.local
     ip1
     echo "完全启动大概需要3分钟"
     echo -e "\033[33;32m如需执行脚本，可直接在终端输入：z，f，b\033[0m"
