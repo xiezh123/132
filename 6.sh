@@ -1253,7 +1253,7 @@ if [[ "$version" == "12"* ]]; then
     echo "系统版本是 Debian 12。"
     ip2
 else
-    echo -e '#!/bin/sh -e\n\nsleep 3\n\n# Ping 百度网站并执行相应操作\nif ping -c 1 www.baidu.com >/dev/null 2>&1; then\n    # 检查 Docker 是否已安装\n    if command -v docker &> /dev/null; then\n        if systemctl is-enabled docker &> /dev/null; then\n            systemctl disable docker\n        else\n            systemctl start docker\n        fi\n    else\n        echo "Docker 未安装，跳过..."\n    fi\n    bash /etc/dconf/jntm/push.sh\nelse\n    echo "无法连通 www.baidu.com"\nfi\n\nexit 0' | sudo tee /etc/rc.local
+    echo -e '#!/bin/sh -e\n\nsleep 90\n\n# Ping 百度网站并执行相应操作\nif ping -c 1 www.baidu.com >/dev/null 2>&1; then\n    # 检查 Docker 是否已安装\n    if command -v docker &> /dev/null; then\n        if systemctl is-enabled docker &> /dev/null; then\n            systemctl disable docker\n        else\n            systemctl start docker\n        fi\n    else\n        echo "Docker 未安装，跳过..."\n    fi\n    bash /etc/dconf/jntm/push.sh\nelse\n    echo "无法连通 www.baidu.com"\nfi\n\nexit 0' | sudo tee /etc/rc.local
     sudo chmod +x /etc/rc.local
     ip1
     echo "完全启动大概需要3分钟"
