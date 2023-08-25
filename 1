@@ -311,6 +311,7 @@ if [ "$option" == "1" ]; then
     --name $img \
     --restart always \
     -p 6666:8080 \
+    --cpus 2 \
     $athr/$img \
     -p 8080:8081 \
     --cpus 2 \
