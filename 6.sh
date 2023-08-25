@@ -1201,6 +1201,8 @@ while true; do
   if [ -f "/var/log/up.log" ]; then
     # Reboot the system
     sleep 10
+    byobu-enable
+    sleep 2
     /sbin/reboot
     break
   elif screen -ls | grep -q "update"; then
