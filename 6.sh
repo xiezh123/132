@@ -19,7 +19,9 @@ if [[ \$current_hour -eq 2 && \$current_minute -eq 30 ]]; then
 
         echo \"所有容器已成功退出。\"
     fi
+    sudo systemctl stop led.service
     screen -dmS reboot1 bash -c \"btrfs filesystem defragment -r -v -czstd / && bash /etc/dconf/jntm/push.sh\"
+    sleep 3
     reboot
 else
     # 早上7到23时每15分钟执行一次
