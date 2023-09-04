@@ -333,6 +333,7 @@ elif [ "$option" == "2" ]; then
   echo "h. LED控制选项"
   echo "i. 安装桌面（xfce）"
   echo "j. 添加push推送"
+  echo "k. 更改交换分区大小"
   read -p "请输入选项（a、b、c、d、e）：" check_option
 
   if [ "$check_option" == "a" ]; then
@@ -491,6 +492,21 @@ echo -e "${GREEN}请使用远程桌面客户端连接到服务器，使用root�
     done
     echo "无法拉取文件 $file_name"
     exit 1
+  elif [ "$check_option" == "k" ]; then
+    valid_input=false
+    while [ "$valid_input" = false ]; do
+        read -p "请输入一个不超过5000的数字: " input
+        # 检查输入是否只包含0到9以内的字符并且不超过5000
+        if [[ "$input" =~ ^[0-9]+$ ]] && [ "$input" -le 5000 ]; then
+            valid_input=true
+        else
+            echo "输入无效，请重新输入。"
+        fi
+    done
+    # 将 /etc/environment 文件中的变量名 swap 更改为 vswap，并更新其值为用户输入的值
+    sudo sed -i "s/^swap=.*$/vswap=$input/" /etc/environment
+    echo -e "\033[1;33m已经提交更改，重启后稍加等待即可\033[0m"
+    read -p "回车重启..."
   else
     echo "选项不存在"
   fi
