@@ -495,7 +495,7 @@ echo -e "${GREEN}请使用远程桌面客户端连接到服务器，使用root�
   elif [ "$check_option" == "k" ]; then
     valid_input=false
     while [ "$valid_input" = false ]; do
-        read -p "请输入一个不超过5000的数字: " input
+        read -p "请输入交换分区大小（MB）: " input
         # 检查输入是否只包含0到9以内的字符并且不超过5000
         if [[ "$input" =~ ^[0-9]+$ ]] && [ "$input" -le 5000 ]; then
             valid_input=true
@@ -507,6 +507,7 @@ echo -e "${GREEN}请使用远程桌面客户端连接到服务器，使用root�
     sudo sed -i "s/^swap=.*$/vswap=$input/" /etc/environment
     echo -e "\033[1;33m已经提交更改，重启后稍加等待即可\033[0m"
     read -p "回车重启..."
+    f
   else
     echo "选项不存在"
   fi
