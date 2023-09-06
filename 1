@@ -1,7 +1,273 @@
 #!/bin/bash
+function dockerbackupfiles() {
 
+function dockerbackup() {
+
+# 定义恢复备份文件的函数
+function delete_backup_files {
+  local backup_dir=$1
+
+  # 提示用户是否删除文件
+  echo "您是否要删除备份文件？（按下回车键删除，否则跳过）"
+  read -t 6 -n 1 response
+
+  # 检查用户的响应
+  if [ "$response" == "" ]; then
+    # 如果用户按下回车键，则删除文件
+    sudo rm -f $backup_dir/docker.tar $backup_dir/docker.tar.xz
+    echo "文件已成功删除。"
+  else
+    # 如果用户没有按下回车键，则跳过删除操作
+    echo "文件未被删除。"
+  fi
+  
+  target_dir="/root/青龙脚本"
+  source_dir="/srv/ql/scripts"
+  
+  if [ ! -L "$target_dir" ]; then
+    echo "软链接不存在，正在创建..."
+    ln -s "$source_dir" "$target_dir"
+    echo "已创建"
+  else
+    echo "软链接已存在"
+  fi
+
+  #提示
+  sudo systemctl start docker
+  echo "容器在恢复过程中可能会轻微卡顿"
+  sleep 10
+  htop
+}
+
+# 询问用户备份/恢复操作
+echo "请选择您要进行的Docker文件操作:"
+echo "1. 备份docker文件夹和映射目录（只备份/srv）"
+echo "2. 恢复docker文件夹和映射目录（只恢复/srv）"
+read -p "请输入操作编号(1/2): " action
+
+# 备份操作
+if [ "$action" == "1" ]; then
+    # 询问用户要备份到哪个目录
+    read -p "请输入保存备份docker文件的路径: " backup_dir
+    if [ -z "$backup_dir" ]; then
+      backup_dir="/root"  # 如果用户输入为空，则使用默认值 /root
+      echo -e "\033[33m已经设置docker文件保存在/root目录\033[0m"
+      sleep 3
+    fi
+
+    while [ ! -d "$backup_dir" ]; do
+      echo "路径不存在或不是目录，请重新输入。"
+      read -p "请输入保存备份文件的路径: " backup_dir
+    done
+
+    # 如果备份目录不存在，则创建目录
+    sudo mkdir -p "$backup_dir"
+    echo "正在停止docker容器"
+    sudo docker stop $(sudo docker ps -aq)
+    sudo systemctl stop docker
+
+    # 检查 /var/lib/docker 和 /srv 目录是否都存在
+    if [[ -d /var/lib/docker ]] && [[ -d /srv ]]; then
+        # 询问用户要使用哪种压缩方法
+        read -t 5 -p "请选择压缩方法 (gz/xz): " compression_method
+        compression_method=${compression_method:-gz}  # 如果用户没有输入，则使用默认值 gz
+
+        # 根据用户选择的压缩方法进行备份
+        if [ "$compression_method" == "gz" ]; then
+            # 使用 tar 命令将 /var/lib/docker 和 /srv 目录压缩为 tar 格式的文件，并使用 pv 命令显示进度
+            echo -e "\033[33m提示不用管\033[0m"
+            backup_file="$backup_dir/docker.tar"
+            sudo tar -czf - /var/lib/docker /srv | pv -q -L 10M | sudo dd of="$backup_file" status=progress
+            echo "已备份 /var/lib/docker 和 /srv 目录到 $backup_file 中"
+
+        elif [ "$compression_method" == "xz" ]; then
+            # 使用 tar 和 xz 命令将 /var/lib/docker 和 /srv 目录压缩为 tar.xz 格式的文件，并使用 pv 命令显示进度
+            backup_file="$backup_dir/docker.tar.xz"
+            echo -e "\033[33m提示不用管\033[0m"
+            sudo tar -cJf - -C /var/lib "$(basename /var/lib/docker)" -C / srv | pv -q -L 10M | sudo dd of="$backup_file" status=progress
+            echo "已备份 /var/lib/docker 和 /srv 目录到 $backup_file 中"
+
+        else
+            # 如果用户输入了无效的压缩方法，则提示错误信息
+            echo "无效的压缩方法"
+        fi
+
+        echo "启动 Docker中"
+        sudo systemctl start docker
+        htop
+    else
+        echo "/var/lib/docker 或 /srv 目录不存在"
+        dockerbackupfiles
+    fi
+
+# 恢复操作
+elif [ "$action" == "2" ]; then
+    # 询问用户从哪个备份目录中恢复
+    read -p "请输入包含docker文件的路径: " backup_dir
+    
+    if [ -z "$backup_dir" ]; then
+      backup_dir="/root"  # 如果用户输入为空，则使用默认值 /root
+      echo -e "\033[33m已经选择/root目录\033[0m"
+      sleep 3
+    fi
+    
+    while [ ! -d "$backup_dir" ]; do
+      echo "路径不存在或不是目录，请重新输入。"
+      read -p "请输入保存备份文件的路径: " backup_dir
+    done
+
+    # 检查备份目录中是否存在 docker.tar 或 docker.tar.xz 文件
+    if [[ -f "$backup_dir/docker.tar" ]] || [[ -f "$backup_dir/docker.tar.xz" ]]; then
+        # 停止 Docker
+        echo "停止docker中"
+        sudo systemctl stop docker
+
+        # 解压缩 /var/lib/docker 目录，并使用 pv 命令显示进度
+        if [[ -f "$backup_dir/docker.tar" ]]; then
+            echo "正在恢复 /var/lib/docker 目录..."
+            sudo dd if="$backup_dir/docker.tar" status=progress | pv -q -L 10M | sudo tar -zxvf - -C /
+        elif [[ -f "$backup_dir/docker.tar.xz" ]]; then
+            echo "正在恢复 /var/lib/docker 目录..."
+            sudo dd if="$backup_dir/docker.tar.xz" status=progress | pv -q -L 10M | sudo tar -xJf - -C /
+        fi
+
+        echo "已恢复 /var/lib/docker 目录"
+        # 询问用户是否删除备份文件
+        delete_backup_files $backup_dir
+    else
+        echo "$backup_dir/docker.tar 或 $backup_dir/docker.tar.xz 文件不存在"
+        dockerbackupfiles
+    fi
+
+# 无效操作
+else
+    echo "无效的操作编号"
+    dockerbackupfiles
+fi
+
+}
+
+function show_menu() {
+    # 获取所有容器信息
+    container_info=$(docker ps -a --format "{{.Names}}")
+    image_info=$(docker ps -a --format "{{.Names}}:{{.Image}}")
+
+    # 列出所有容器及其状态
+    echo "可用容器："
+    index=1
+    for container in $container_info
+    do
+        container_status=$(docker inspect -f '{{.State.Status}}' $container)
+
+        if [[ $container_status == "running" ]]; then
+            echo -e "\033[32m$index. $container\033[0m"
+        else
+            echo -e "\033[33m$index. $container\033[0m"
+        fi
+
+        ((index++))
+    done
+
+    # 读取用户输入
+    read -p "请输入命令和容器序号（例如 q1-启动，s2-停止，d3-删除或者直接回车）: " input
+
+    if [[ -z $input ]]; then
+        # 如果用户直接按回车，则执行备份函数
+        dockerbackup
+    else
+        # 提取容器序号和命令
+        number=${input:1}
+        command=${input:0:1}
+
+        # 根据命令执行相应操作
+        if [[ $number -gt 0 && $number -le ${#container_info[@]} ]]; then
+            container_name=$(echo "$container_info" | awk "NR==$number")
+            case $command in
+                "q")
+                    # 启动容器
+                    docker start $container_name
+                    echo "正在启动容器：$container_name"
+
+                    # 等待5秒钟检查容器状态
+                    sleep 5
+                    container_status=$(docker inspect -f '{{.State.Status}}' $container_name)
+
+                    if [[ $container_status == "running" ]]; then
+                        echo "已成功启动容器：$container_name"
+                    else
+                        echo "容器启动失败，请稍后重试。"
+                        docker start $container_name
+
+                        # 等待5秒钟再次检查容器状态
+                        sleep 5
+                        container_status=$(docker inspect -f '{{.State.Status}}' $container_name)
+
+                        if [[ $container_status == "running" ]]; then
+                            echo "已成功启动容器：$container_name"
+                        else
+                            read -p "容器启动失败，是否删除该容器？（按回车删除）" choice
+                            if [[ -z $choice ]]; then
+                                # 检查容器关联的镜像
+                                container_image=$(echo "$image_info" | grep "$container_name:" | awk -F: '{print $2}')
+                                read -p "是否删除容器关联的镜像 $container_image？[Y/N]: " image_choice
+                                if [[ $image_choice == "Y" || $image_choice == "y" ]]; then
+                                    docker rm -f $container_name
+                                    docker rmi $container_image
+                                    echo "已删除容器：$container_name"
+                                    echo "已删除镜像：$container_image"
+                                else
+                                    docker rm $container_name
+                                    echo "已删除容器：$container_name"
+                                    echo "未删除镜像：$container_image"
+                                fi
+                            else
+                                echo "未删除容器：$container_name"
+                            fi
+                        fi
+                    fi
+                    ;;
+                "s")
+                    # 停止容器
+                    docker stop $container_name
+                    echo "已停止容器：$container_name"
+                    ;;
+                "d")
+                    # 删除容器
+                    # 检查容器关联的镜像
+                    container_image=$(echo "$image_info" | grep "$container_name:" | awk -F: '{print $2}')
+                    read -p "是否删除容器关联的镜像 $container_image？[Y/N]: " image_choice
+                    if [[ $image_choice == "Y" || $image_choice == "y" ]]; then
+                        docker rm -f $container_name
+                        docker rmi $container_image
+                        echo "已删除容器：$container_name"
+                        echo "已删除镜像：$container_image"
+                    else
+                        docker rm $container_name
+                        echo "已删除容器：$container_name"
+                        echo "未删除镜像：$container_image"
+                    fi
+                    ;;
+                *)
+                    echo "无效的命令，请重新输入。"
+                    ;;
+            esac
+        else
+            echo "无效的容器序号，请重新输入。"
+        fi
+    fi
+
+    echo "--------分割线-----------------------分割线---------"
+    show_menu
+}
+
+# 菜单循环
+show_menu
+
+}
+
+###############################################################################################################################
 #检查变量
-FILE_PATH=/home/鸡你太美
+FILE_PATH=/var/log/鸡你太美
 my_var=$(last | grep "pts/[0-9]" | grep "still logged in" | awk '{print $1}' | uniq -c)
 
 if [ $(systemctl is-active docker) = "active" ]; then
@@ -320,6 +586,34 @@ if [ "$option" == "1" ]; then
     echo "端口：8123"
   else
     echo "选项不存在"
+    # 检查 Docker 是否已安装
+    if ! command -v docker &> /dev/null; then
+        echo "Docker 未安装，请先安装 Docker。"
+        # 检查 byobu 是否已安装
+        if dpkg -s byobu &> /dev/null; then
+            bash <(curl -sSL https://linuxmirrors.cn/docker.sh)
+        else
+            echo "系统似乎没有更新，请先更新系统"
+            apt update && apt upgrade
+            apt-get install byobu -y
+            byobu-enable
+        fi
+        exit 1
+    else
+        # 检查 Docker 服务是否正在运行
+        if ! systemctl is-active --quiet docker; then
+            read -t 5 -p "Docker 未运行，是否启动 Docker 服务？[回车键确认，5秒超时]: " start_choice
+            if [ -z "$start_choice" ]; then
+                sudo systemctl start docker
+                echo "Docker 服务已启动。"
+            else
+                echo "未启动 Docker 服务。"
+                exit 1
+            fi
+        fi
+    fi
+
+    dockerbackupfiles
   fi
 elif [ "$option" == "2" ]; then
   echo "请选择要执行的操作："
