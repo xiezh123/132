@@ -5,9 +5,9 @@ function dockerbackup() {
 
 # 定义恢复备份文件的函数
 function delete_backup_files {
-  local backup_dir=$1
 
   # 提示用户是否删除文件
+  backup_dir="$dockerfile"
   echo "您是否要删除备份文件？（按下回车键删除，否则跳过）"
   read -t 6 -n 1 response
 
@@ -115,7 +115,7 @@ elif [ "$action" == "2" ]; then
       echo "路径不存在或不是目录，请重新输入。"
       read -p "请输入保存备份文件的路径: " backup_dir
     done
-
+    export dockerfile="$backup_dir"
     # 检查备份目录中是否存在 docker.tar 或 docker.tar.xz 文件
     if [[ -f "$backup_dir/docker.tar" ]] || [[ -f "$backup_dir/docker.tar.xz" ]]; then
         # 停止 Docker
@@ -362,45 +362,36 @@ if command -v docker > /dev/null; then
 
   # 输出总共使用流量
   echo "使用的流量：${total} ${units[$unit]}，CPU 温度为：$cpu_temp_c°C，可用/总共: $mem_info，swap：$swapfile_used_mb/$swapfile_size_mb MB，zram ：$zram_info"
-
-  # 获取所有容器信息
-  container_info=$(docker ps -a --format "{{.Names}}|{{.State}}")
-  # 循环遍历所有容器信息，输出到一行中，并用竖线隔开
-  output=""
-  for info in $container_info
-  do
-      # 提取容器名称和状态信息
-      name=$(echo $info | cut -d "|" -f 1)
-      state=$(echo $info | cut -d "|" -f 2)
-
-      # 检查容器状态是否为 running
-      if [[ $state == "running" ]]; then
-          # 如果容器正在运行，标记为绿色
-          output+="\033[32m$name\033[0m | "
-      else
-          # 如果容器未运行，使用黄色
-          output+="\033[33m$name\033[0m | "
-      fi
-  done
-  # 去掉输出字符串末尾的竖线和空格
-  output=${output% | }
-
-  # 输出所有容器名称
-  echo -e "容器状态：$output"
-else
-  echo "Docker没有安装，正在拉取安装脚本..."
-
-  # 执行 Docker 安装脚本
-  apt update && apt upgrade
-  bash <(curl -sSL https://linuxmirrors.cn/docker.sh)
-
-  # 检查 Docker 是否安装成功
-  if command -v docker > /dev/null; then
-    systemctl disable docker
-    echo -e "\033[32mDocker成功！请输入1后选择安装\033[0m"
+  
+  if sudo systemctl is-active --quiet docker; then
+      echo "Docker 正在运行。"
+      # 获取所有容器信息
+      container_info=$(docker ps -a --format "{{.Names}}|{{.State}}")
+      # 循环遍历所有容器信息，输出到一行中，并用竖线隔开
+      output=""
+      for info in $container_info
+      do
+          # 提取容器名称和状态信息
+          name=$(echo $info | cut -d "|" -f 1)
+          state=$(echo $info | cut -d "|" -f 2)
+          # 检查容器状态是否为 running
+          if [[ $state == "running" ]]; then
+              # 如果容器正在运行，标记为绿色
+              output+="\033[32m$name\033[0m | "
+          else
+              # 如果容器未运行，使用黄色
+              output+="\033[33m$name\033[0m | "
+          fi
+      done
+      # 去掉输出字符串末尾的竖线和空格
+      output=${output% | }
+      # 输出所有容器名称
+      echo -e "容器状态：$output"
   else
-    echo -e "\033[33mDocker 安装失败，请输入1或者回车后继续选择安装或手动安装\033[0m"
+      echo "Docker 未运行，请启动 Docker 服务。"
   fi
+else
+  echo "Docker没有安装"
 fi
 echo "请选择要执行的操作："
 echo "1. 安装工具"
@@ -439,7 +430,7 @@ if [ "$option" == "1" ]; then
   echo "h. 安装qiandao"
   echo "i. 安装UnblockNeteaseMusic"
   echo "j. 安装Hsaa"
-  read -p "请输入字母选项：" install_option
+  read -p "请输入字母安装或者回车管理容器：" install_option
 
   if [ "$install_option" == "a" ]; then
     echo "请选择安装docker的镜像源（可能需要稳定的网络环境）："
