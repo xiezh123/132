@@ -40,7 +40,7 @@ function delete_backup_files {
 }
 
 # 询问用户备份/恢复操作
-echo "请选择您要进行的Docker文件操作:"
+echo -e "\033[0;33m请选择您要进行的Docker文件操作:\033[0m"
 echo "1. 备份docker文件夹和映射目录（只备份/srv）"
 echo "2. 恢复docker文件夹和映射目录（只恢复/srv）"
 read -p "请输入操作编号(1/2): " action
@@ -364,7 +364,6 @@ if command -v docker > /dev/null; then
   echo "使用的流量：${total} ${units[$unit]}，CPU 温度为：$cpu_temp_c°C，可用/总共: $mem_info，swap：$swapfile_used_mb/$swapfile_size_mb MB，zram ：$zram_info"
   
   if sudo systemctl is-active --quiet docker; then
-      echo "Docker 正在运行。"
       # 获取所有容器信息
       container_info=$(docker ps -a --format "{{.Names}}|{{.State}}")
       # 循环遍历所有容器信息，输出到一行中，并用竖线隔开
@@ -401,7 +400,7 @@ echo "   a. 关闭LED"
 echo "   b. 清理垃圾&压缩系统"
 echo "   c. 查看网络信息"
 echo "   d. 查看系统状态"
-
+# 将输入3更改为4gwifi设备的热点设置和apn设置
 clean_commands="apt-get clean
 journalctl --vacuum-size=5M
 echo > /var/log/syslog
@@ -697,6 +696,8 @@ elif [ "$option" == "2" ]; then
   elif [ "$check_option" == "g" ]; then
     cat /sys/class/mmc_host/mmc0/mmc0\:0001/life_time
   elif [ "$check_option" == "h" ]; then
+    echo "来自酷安 https://www.coolapk.com/feed/42477870? "
+    sleep 3
     bash -c "$(curl -L gitee.com/ojf6ii/led-control-script/raw/master/led.sh)"
   elif [ "$check_option" == "i" ]; then
     read -p "需要4g左右空间，安装速度由棒子体质决定，输入x返回会话，回车继续"
@@ -708,16 +709,20 @@ elif [ "$option" == "2" ]; then
     else
         echo "安装工具1"
     fi
-    echo '#!/bin/bash
-    sudo apt-get update && sudo apt-get install xrdp -y && sleep 3
-    sudo service xrdp start -y && apt-get install task-xfce-desktop -y && sleep 3
-    sudo apt-get install -y openssh-server
-    sudo systemctl start ssh
-    btrfs filesystem defragment -r -v -czstd / && sleep 3
-    wget https://dldir1.qq.com/qqfile/qq/QQNT/ad5b5393/linuxqq_3.1.2-13107_arm64.deb && sudo dpkg -i linuxqq_3.1.2-13107_arm64.deb
-    sudo rm /root/linuxqq_3.1.2-13107_arm64.deb
-    sudo rm /root/Desktop.sh
-    sudo rm /usr/local/bin/x' > Desktop.sh
+    if [ -e "/root/Desktop.sh" ]; then
+      echo "文件 /root/Desktop.sh 存在."
+    else
+      echo '#!/bin/bash
+      sudo apt-get update && sudo apt-get install xrdp -y && sleep 3
+      sudo service xrdp start -y && apt-get install task-xfce-desktop -y && sleep 3
+      sudo apt-get install -y openssh-server
+      sudo systemctl start ssh
+      btrfs filesystem defragment -r -v -czstd / && sleep 3
+      wget https://dldir1.qq.com/qqfile/qq/QQNT/ad5b5393/linuxqq_3.1.2-13107_arm64.deb && sudo dpkg -i linuxqq_3.1.2-13107_arm64.deb
+      sudo rm /root/linuxqq_3.1.2-13107_arm64.deb
+      sudo rm /root/Desktop.sh
+      sudo rm /usr/local/bin/x' > Desktop.sh
+    fi
     sleep 2
     sudo chmod +x /root/Desktop.sh
     # 定义文件路径
@@ -796,6 +801,27 @@ echo -e "${GREEN}请使用远程桌面客户端连接到服务器，使用root�
   else
     echo "选项不存在"
   fi
+
+elif [[ "$option" == "3" ]]; then # 开热点
+  # 检查信号
+  # 获取设备列表
+  devices=$(mmcli -L | awk '{print $1}')
+  # 遍历设备列表
+  for device in $devices; do
+    echo "设备路径: $device"
+    # 获取设备信息
+    device_info=$(mmcli -m "$device")
+    # 提取设备 ID
+    equipment_id=$(echo "$device_info" | awk -F ': ' '/equipment id:/ {print $2}')
+    echo "设备MEID: $equipment_id"
+    # 提取设备状态
+    state=$(echo "$device_info" | awk -F ': ' '/state:/ {print $2}')
+    echo "信号状态: $state"
+    # 提取故障原因
+    failed_reason=$(echo "$device_info" | awk -F ': ' '/failed reason:/ {print $2}')
+    echo "SIM状态: $failed_reason"
+    echo "------------------------------"
+  done
 elif [[ "$option" == "3a" ]]; then
   # 显示 LED 控制菜单
   echo "请选择 LED 控制选项：（回车关闭）"
