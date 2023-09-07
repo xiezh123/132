@@ -1,4 +1,6 @@
 #!/bin/bash
+
+############################################################DOCKER备份
 function dockerbackupfiles() {
 
 function dockerbackup() {
@@ -264,7 +266,7 @@ function show_menu() {
 show_menu
 
 }
-
+############################################################DOCKER备份
 ###############################################################################################################################
 #检查变量
 FILE_PATH=/var/log/鸡你太美
@@ -295,8 +297,7 @@ fi
 hour=$(date +%H)
 
 if ! pgrep docker >/dev/null; then
-    echo "Docker未运行。正在启动Docker..."
-    sudo systemctl start docker
+    echo "Docker未运行。"
 elif ((hour >= 5 && hour < 12)); then
     echo "早上好！欢迎使用脚本！"
 elif ((hour >= 12 && hour < 18)); then
@@ -385,7 +386,12 @@ if command -v docker > /dev/null; then
       # 去掉输出字符串末尾的竖线和空格
       output=${output% | }
       # 输出所有容器名称
-      echo -e "容器状态：$output"
+      # 检查变量 $output 是否为空
+      if [ -z "$output" ]; then
+        echo -e "\e[32mDocker服务已安装但是没有安装容器，输入 1 选择一个喜欢的吧\e[0m"
+      else
+        echo -e "容器状态：$output"
+      fi
   else
       echo "Docker 未运行，请启动 Docker 服务。"
   fi
@@ -578,15 +584,24 @@ if [ "$option" == "1" ]; then
     echo "选项不存在"
     # 检查 Docker 是否已安装
     if ! command -v docker &> /dev/null; then
-        echo "Docker 未安装，请先安装 Docker。"
+        echo "要求安装 Docker。"
         # 检查 byobu 是否已安装
         if dpkg -s byobu &> /dev/null; then
+            echo "不要急，能跑等就行，OK吗？"
+            sleep 3
             bash <(curl -sSL https://linuxmirrors.cn/docker.sh)
+            z
         else
             echo "系统似乎没有更新，请先更新系统"
-            apt update && apt upgrade
+            apt update && #apt upgrade
             apt-get install byobu -y
-            byobu-enable
+            if dpkg -s byobu &> /dev/null; then
+                byobu-enable
+                sleep 1
+                echo "安装ssh托管服务完成，请关闭当前会话重新连接。需要完整更新请执行 apt upgrade 或者重新执行脚本重复步骤安装docker"
+            else
+                echo "该死的，毁灭吧！！！啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊啊（*……%￥#"
+            fi
         fi
         exit 1
     else
@@ -802,26 +817,81 @@ echo -e "${GREEN}请使用远程桌面客户端连接到服务器，使用root�
     echo "选项不存在"
   fi
 
-elif [[ "$option" == "3" ]]; then # 开热点
-  # 检查信号
-  # 获取设备列表
-  devices=$(mmcli -L | awk '{print $1}')
-  # 遍历设备列表
-  for device in $devices; do
-    echo "设备路径: $device"
-    # 获取设备信息
-    device_info=$(mmcli -m "$device")
-    # 提取设备 ID
-    equipment_id=$(echo "$device_info" | awk -F ': ' '/equipment id:/ {print $2}')
-    echo "设备MEID: $equipment_id"
-    # 提取设备状态
-    state=$(echo "$device_info" | awk -F ': ' '/state:/ {print $2}')
-    echo "信号状态: $state"
-    # 提取故障原因
-    failed_reason=$(echo "$device_info" | awk -F ': ' '/failed reason:/ {print $2}')
-    echo "SIM状态: $failed_reason"
-    echo "------------------------------"
-  done
+elif [[ "$option" == "3" ]]; then # 开热点####################################################################################################################################
+  output=$(mmcli -m 0)
+  # 提取所需内容
+  filtered_output=$(echo "$output" | awk '/Status/,/signal quality/ {print}') #状态
+  signal_quality=$(echo "$filtered_output" | awk -F 'signal quality: ' '/signal quality:/{print $2}') #信号
+  network_type=$(echo "$filtered_output" | awk -F 'access tech: ' '/access tech:/{print $2}') #网络
+  power_state=$(echo "$filtered_output" | awk -F 'power state: ' '/power state:/{print $2}') #开关
+  # 输出设备内容
+  lock=$(echo "$filtered_output" | awk -F 'lock: ' '/lock:/{print $2}')
+  equipment_id=$(mmcli -m 0 | awk -F ': ' '/equipment id:/ {print $2}')
+  device_model=$(mmcli -m 0 | awk -F 'firmware revision: ' '/firmware revision:/ {print $2}' | awk '{print $1}')
+  echo "当前设备是：$device_model，设备MEID: $equipment_id，SIM锁定状态：$lock"
+  # 去除颜色控制码
+  filtered_output=$(echo "$filtered_output" | sed 's/\x1B\[[0-9;]\+[A-Za-z]//g')
+  # 检查状态并进行相应提示
+  if echo "$filtered_output" | grep -q -E "state:[[:space:]]+connected"; then
+      echo "当前状态：4g网络已连接"
+      echo "信号质量：$signal_quality"
+      echo "网络类型：$network_type"
+      echo "电源状态：$power_state"
+      read -p "回车配置热点..."
+      # 提示用户输入热点名称和密码
+      if grep -q "4Gwifi=" /etc/environment; then
+          # 从文件中读取变量内容
+          read -t 10 -n 1 -s -r -p "检查到你已经设置热点，重新配置吗？（按回车键继续，10秒后自动退出）"
+          # 检查用户是否回车确认或等待超时
+          if [[ $? -ne 0 ]]; then
+              echo "等待超时或无效按键。脚本已退出。"
+              exit 1
+          fi
+      else
+          read -t 10 -n 1 -s -r -p "开机自启的，确定需要设置热点吗？？（按回车键继续，10秒后自动退出）"
+          # 检查用户是否回车确认或等待超时
+          if [[ $? -ne 0 ]]; then
+              echo "等待超时或无效按键。脚本已退出。"
+              exit 1
+          fi
+      fi
+      read -p "请输入热点名称: " hotspot_ssid
+      read -p "请输入热点密码: " hotspot_password
+      # 提示用户确认输入
+      echo "您输入的热点名称为: $hotspot_ssid"
+      echo "您输入的热点密码为: $hotspot_password"
+      read -t 10 -n 1 -s -r -p "请确认输入是否正确，按回车键继续，或者等待10秒后重新输入..."
+      # 检查用户是否回车确认或等待超时
+      if [[ $? -ne 0 ]]; then
+          echo "等待超时或无效按键。请重新运行脚本输入热点名称和密码。"
+          exit 1
+      fi
+      # 检查 /etc/environment 文件是否含有变量 4Gwifi
+      if grep -q "4Gwifi=" /etc/environment; then
+          # 更改变量内容为用户输入的热点名称和密码
+          sed -i "s|4Gwifi=.*|4Gwifi=$hotspot_ssid//$hotspot_password|" /etc/environment
+      else
+          # 创建变量并设置内容为用户输入的热点名称和密码
+          echo "4Gwifi=$hotspot_ssid//$hotspot_password" >> /etc/environment
+      fi
+      # 执行 nmcli 创建热点
+      nmcli d wifi hotspot ifname wlan0 con-name wifi ssid "$hotspot_ssid" band bg channel 11 password "$hotspot_password"
+  elif echo "$filtered_output" | grep -q -E "state:[[:space:]]+registered"; then
+      echo "当前网络已注册，执行 nmtui 前往启用即可"
+      echo "信号质量：$signal_quality"
+      echo "网络类型：$network_type"
+      echo "电源状态：$power_state"
+  elif echo "$filtered_output" | grep -q -E "state:[[:space:]]+failed"; then
+      echo "没有信号，请检查基带是否已经更换或者插入SIM卡"
+  elif echo "$filtered_output" | grep -q -E "state:[[:space:]]+enabled"; then
+      echo "请检查基带是否已经更换(使用刷机包/modem解压并且覆盖到Debian//lib/firmware目录下）"
+      echo "信号质量：$signal_quality"
+      echo "网络类型：$network_type"
+      echo "电源状态：$power_state"
+  else
+      mmcli -m 0
+      echo "无法确定当前状态，请查看（如果是黄色的 connected 重启试试"
+  fi
 elif [[ "$option" == "3a" ]]; then
   # 显示 LED 控制菜单
   echo "请选择 LED 控制选项：（回车关闭）"
@@ -881,9 +951,40 @@ elif [[ "$option" == "3b" ]]; then
 elif [[ "$option" == "3c" ]]; then 
   echo "查看网络信息"
   ip addr show
+  echo -e "\e[32m--------测试百度----------------------------------------------------------------------------------------------------------------------------------------------------\e[0m"
   ping -c 4 baidu.com
+  echo -e "\e[32m---------测试谷歌---------------------------------------------------------------------------------------------------------------------------------------------------\e[0m"
   ping -c 4 google.com
+  echo -e "\e[32m------------查看接口------------------------------------------------------------------------------------------------------------------------------------------------\e[0m"
+  # 获取网络接口数量
+  interface_count=$(nmcli device status | awk 'NR>1 {print $1}' | wc -l)
+  # 输出网络接口数量的提示
+  echo "网络接口数量: $interface_count"
+  echo "接口名称列表:"
+  # 获取设备列表及其对应的类型
+  devices=($(nmcli device status | awk 'NR>1 {print $1}'))
+  device_types=($(nmcli device show | awk '/GENERAL.DEVICE:/ {getline; print $2}'))
+  # 遍历设备列表
+  for ((i=0; i<interface_count; i++)); do
+    # 输出设备名称和类型
+    device=${devices[$i]}
+    device_type=${device_types[$i]}
+    if [ "$device_type" == "ethernet" ]; then
+      echo -e "接口\e[33m$device\e[0m正在被ethernet使用"
+    elif [ "$device_type" == "wifi" ]; then
+      echo -e "接口\e[33m$device\e[0m正在被wifi使用"
+    elif [ "$device_type" == "gsm" ]; then
+      echo -e "接口\e[33m$device\e[0m正在被gsm/modem使用"
+    else
+      echo "接口$device正在被$device_type使用"
+    fi
+  done
+  echo -e "\e[32m-----------查看基带-------------------------------------------------------------------------------------------------------------------------------------------------\e[0m"
   mmcli -m 0
+  echo -e "\e[32m-------------检查完成-------------\e[0m"
+  echo -e "\e[32m-----------测试网速（太慢了就退出吧）-------------------------------------------------------------------------------------------------------------------------------------------------\e[0m"
+  speedtest-cli
+  z
 elif [[ "$option" == "3d" ]]; then 
   echo "查看系统状态"
   echo "系统详情：$(uname -a)"
@@ -924,6 +1025,6 @@ elif [[ "$option" == "3d" ]]; then
 
   done <<< "$container_info"
 else
-  echo "选项不存在"
+  echo "选项不存在，拉取其他脚本"
   curl -sS -O https://raw.githubusercontent.com/kejilion/sh/main/kejilion.sh && chmod +x kejilion.sh && ./kejilion.sh
 fi
