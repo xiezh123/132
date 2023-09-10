@@ -1,30 +1,166 @@
 #!/bin/bash
 
-function ip0 {
-  ip_address=$(ip addr show wlan0 | grep 'inet ' | awk '{print $2}' | cut -d '/' -f 1)
-  echo -e "\033[33m更新大小1G+，操作不可逆，绿色LED会一直闪烁到重启，尝试安装Docker后压缩直至重启，重启后LED会恢复为默认状态\033[0m"
-  echo -e "\e[33m如需恢复备份文件请在安装Docker之前将docker.tar(xz)文件上传完成(/root目录）\e[0m"
-  echo -e "\033[31m如果无法连接且红灯长时间不闪烁就拔了重新尝试，建议使用WIFI连接 IP：\033[32m$ip_address  \033[0m\033[31m。\033[31m更新过程中断开连接可以输入 \033[32m x \033[31m 返回会话\033[0m"
-  if command -v docker &> /dev/null; then
-      echo "脚本无法在此系统上运行"
-  else
-      if [ -d "/etc/dconf/jntm" ]; then
-          echo "脚本无法在此系统上运行"
-          exit 0
-      else
-          echo "注意！！！"
-      fi
-      read -p $'\e[1;33m脚本仅限学习交流，执行后因不当操作出现其他问题\e[0m\e[1;33m自行承担（解决）\e[0m\e[1;33m，回车继续或者CTRL+C退出: \e[0m'
-  fi
+################################################################################################################################################################################设置自启
+function quick_reboot {
+
+        script_path=$(dirname "$(realpath "$0")")
+        script_name=$(basename "$0")
+        # 执行函数后退出脚本
+        sudo chmod +x $script_path/$script_name
+        # 要插入的命令
+        insert_command="sleep 15 && bash $script_path/$script_name"
+        # rc.local 文件路径
+        rc_local_file="/etc/rc.local"
+        # 检查 rc.local 文件是否存在
+        if [ -f "$rc_local_file" ]; then
+            # 检查插入的命令是否已存在
+            if grep -q "$insert_command" "$rc_local_file"; then
+                echo "命令已存在于 rc.local 文件中."
+            else
+                # 在 exit 0 之前插入命令，并且备份
+                sudo cp /etc/rc.local /etc/rc.local.backup
+                sed -i "/exit 0/i $insert_command" "$rc_local_file"
+                echo "已插入命令到 rc.local 文件.开机25秒后执行$script_path/$script_name"
+            fi
+        else
+            echo "rc.local 文件不存在."
+        fi
+        sleep 1 # 等待
+        sudo mv "$script_path/4gwifi" /var/log/
+        sleep 1 # 等待
+        echo -e "\033[1;33m$script_path/4gwifi已经移动到/var/log，即将执行重启！\033[0m"
+        sleep 3 # 等待
+        countdown2=5
+
+        echo "按回车键以执行关机操作"
+        echo "（$countdown2 秒后自动停止脚本）"
+
+        for ((i=$countdown2; i>=1; i--)); do
+            echo -ne "倒计时: $i \r"
+            sleep 1
+
+            # 检查用户输入
+            if read -r -t 1 -s -N 1 input; then
+                if [[ $input == $'\x0a' ]]; then
+                    echo "执行关机操作..."
+                    echo host > /sys/kernel/debug/usb/ci_hdrc.0/role
+                    systemctl suspend
+                    exit 0
+                fi
+            fi
+        done
+
+        echo "倒计时结束，执行重启"
+        /sbin/reboot
+        exit 0
+
+}
+# 网络连通性检测
+host_number() {
+                        sleep 3
+                        # 执行 ifconfig 命令并将输出保存到变量中
+                        output=$(ifconfig usb0)
+                        sleep 1
+                        echo none > /sys/class/leds/blue\:wifi/trigger #蓝灯
+                        echo none > /sys/class/leds/green\:internet/trigger #绿灯
+                        # 使用 grep 命令在输出中查找目标字符串
+                        if echo "$output" | grep -q "inet 10.42.0.1"; then
+                            echo "usb0 接口具有ip内容，接口处于使用状态，将保持状态"
+                            echo cpu > /sys/class/leds/green\:internet/trigger
+                        else
+                            echo "usb0 接口没有ip内容，接口处于未使用状态，切换主机模式"
+                            echo host > /sys/kernel/debug/usb/ci_hdrc.0/role
+                            sudo sh -c "echo timer > /sys/class/leds/blue\:wifi/trigger && echo 500 > /sys/class/leds/blue\:wifi/delay_on && echo 500 > /sys/class/leds/blue\:wifi/delay_off" && sleep 1
+                            sleep 6
+                        fi
+                        sleep 3
+                        echo "测试更新中"
+                        # 清空 /etc/apt/sources.list 文件内容
+                        echo "" > /etc/apt/sources.list
+                        # 添加清华大学开源软件镜像站的源到 /etc/apt/sources.list 文件
+                        echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free" > /etc/apt/sources.list
+                        echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list
+                        check_update_status() {
+                            local update_output="$1"
+                            if apt list --upgradable | grep -qE '^.+/.+ '; then
+                                if echo "$update_output" | grep -q "暂时不能解析域名"; then
+                                    echo "需要重启"
+                                    quick_reboot
+                                else
+                                    apt list --upgradable
+                                    echo "当前状态可以更新"
+                                    export Network=1
+                                fi
+                            else
+                                if echo "$update_output" | grep -q "正在读取软件包列表" && echo "$update_output" | grep -q "正在分析软件包的依赖关系树" && echo "$update_output" | grep -q "正在读取状态信息" && echo "$update_output" | grep -q "所有软件包均为最新"; then
+                                    echo "所有软件包均为最新。"
+                                else
+                                    echo "更新软件包..."
+                                    # 执行更新软件包的操作
+                                    export Network=1
+                                fi
+                            fi
+                        }
+                        # 执行 apt update 命令，并将输出直接显示在终端上
+                        update_output=$(apt update 2>&1 | tee /dev/tty)
+                        ping -c 1 www.baidu.com > /dev/null  # 发送一个ping请求到百度
+                        if [ $? -eq 0 ]; then
+                            echo "通过"
+                            if [[ -z "${SH}" ]]; then
+                                echo "环境变量 SH 不存在。"
+                            else
+                                #环境变量 SH 存在
+                                check_update_status "$update_output"
+                            fi
+                        else
+                            sleep 3
+                            ping -c 1 www.baidu.com > /dev/null
+                            if [ $? -eq 0 ]; then
+                                echo "第一次尝试通过"
+                            else
+                                ping -c 1 8.8.8.8 > /dev/null  # 发送一个ping请求到谷歌
+                                if [ $? -eq 0 ]; then
+                                    echo "第二次尝试通过"
+                                    check_update_status "$update_output"
+                                else
+                                    if [[ -z "${SH}" ]]; then
+                                        echo "环境变量 SH 不存在。"
+                                    else
+                                        #环境变量 SH 存在
+                                        /sbin/reboot
+                                    fi
+                                    echo "第三次ping测试失败，没有网络？？？"
+                                    check_update_status "$update_output"
+                                    sudo sh -c "echo timer > /sys/class/leds/blue\:wifi/trigger && echo 1000 > /sys/class/leds/blue\:wifi/delay_on && echo 1000 > /sys/class/leds/blue\:wifi/delay_off"
+                                    count=0
+                                    max_attempts=$((15 * 60 / 5))  # 15分钟内的最大尝试次数
+                                    echo none > /sys/class/leds/green\:internet/trigger #绿灯
+                                    while true; do
+                                    if ping -c 1 www.baidu.com > /dev/null; then
+                                        echo "Ping 成功。"
+                                        export Network=1
+                                        break
+                                    else
+                                        count=$((count + 1))
+
+                                        if [ $count -eq $max_attempts ]; then
+                                            echo "15分钟内未能成功Ping。执行系统挂起操作。"
+                                            systemctl suspend
+                                            break
+                                        fi
+
+                                        echo -e "\033[31mPing 失败。6秒后重试...（请查看网络是否正常）\033[0m"
+                                        sleep 6
+                                        echo 255 > /sys/class/leds/mmc0\:\:/brightness
+                                    fi
+                                    done
+                                fi
+                            fi
+                        fi
+                        echo phy0tx > /sys/class/leds/blue\:wifi/trigger
+
 }
 
-function ip1 {
-
-# 获取执行前的磁盘空间并保存到环境变量中
-export DF_BEFORE=$(df -h /)
-
-# 获取当前时间并保存到环境变量中
-export MY_TIME=$(date +%Y-%m-%d_%H:%M:%S)
 ################################################################################################################################################################################设置sawp
 
 function skip_swap_setup {
@@ -48,222 +184,571 @@ function skip_swap_setup {
           fi
       done
   fi
-  
-  #删除zram0
-  sudo swapoff /dev/zram0 &&
-  sudo zramctl -r /dev/zram0
-  
   # 获取当前swap分区的大小，单位为MB
   current_swap=$(sudo swapon --show | awk '/\/dev\/zram/ {print $3}' | sed 's/M//')
-  
   # 如果当前swap分区大小为空，则设置为0
   if [ -z "$current_swap" ]; then
       current_swap=0
   fi
-  
   # 获取当前可用内存的大小，单位为MB
   mem=$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo)
-
   # 获取当前总内存的大小，单位为GB或MB
   total_mem=$(free -h | awk '/^Mem:/ {print $2}')
-
   # 计算建议的swap大小，单位为MB
   if [ "$current_swap" != "0" ]; then
       swap=$(echo "($mem * 1.5 + $current_swap)/1" | bc)
   else
       swap=$(echo "($mem * 1.5 + 424.5)/1" | bc)
   fi
-  
   # 对建议的swap大小进行四舍五入，并将结果转换为整数
   swap=$(printf "%.0f" "$swap")
-  
   # 如果当前swap分区的大小小于建议的大小，则提示需要设置更大的swap分区
   if [ "$current_swap" -lt "$swap" ]; then
       echo "如果运行的服务较多推荐设置在$swap MB左右。"
   fi
-  
   # 如果当前可用内存的大小小于建议的大小，则提示需要添加更多的内存
   if [ "$mem" -lt "$swap" ]; then
       add_mem=$((swap - mem))
       echo -e "当前可用内存大小为${mem} MB，轻量使用建议添加\e[32m${add_mem}\e[0m MB的内存以达到最佳能效。\033[K"
   fi
-
-  if grep -q btrfs /etc/fstab; then
-      # 循环读取交换分区大小，直到输入有效的数字
-      while true; do
-          echo -ne "\e[33m设置 btrfs 文件系统的交换分区大小（另一半为zram0，回车直接使用绿色值，单位：MB）：\e[0m"
-          read swap_size
-
-          # 如果用户没有输入数字而直接回车，则使用 $add_mem 变量的值
-          if [ -z "$swap_size" ]; then
-              swap_size="$add_mem"
+  # 添加检查/4gwifi文件，如果不在/log目录则视为手动配置
+  # 检查文件是否存在
+  if [[ -e "/var/log/4gwifi" ]]; then
+      echo "文件 /var/log/4gwifi 存在"
+      if grep -q "^vswap=" "/etc/environment"; then
+          # 读取变量大小
+          vswap_value=$(grep "^vswap=" "/etc/environment" | cut -d= -f2-)
+          echo "在 /etc/environment 中找到变量 vswap，其大小为: $vswap_value"
+          if [ "$vswap_value" -ge 300 ]; then
+              # 大于或等于 300
+              export JNTM=0
+          else
+              # 小于 300
+              export JNTM=1
           fi
-          
-          # 检查输入是否包含删除字符
-          if [[ "$swap_size" =~ \^H ]]; then
-              echo "错误：输入包含删除字符，请重新输入" >&2
-              continue
-          fi
-          
-          # 检查输入是否为数字
-          re='^[0-9]+$'
-          if ! [[ $swap_size =~ $re ]] ; then
-              echo "错误：交换分区大小必须是一个数字" >&2
-              continue
-          fi
-          
-          break
-      done
-      
-      # 设置 swap 分区
-      SIZE=$((swap_size/2))
-      export zram="$SIZE"
-      SIZE1="${SIZE}M"
-      sudo truncate -s 0 /swapfile &&
-      sudo chattr +C /swapfile &&
-      sudo btrfs property set /swapfile compression none &&
-      dd if=/dev/zero of=/swapfile bs=1M count="$SIZE" &&
-      sleep 2 &&
-      chmod 600 /swapfile &&
-      mkswap /swapfile &&
-      modprobe zram
-      zram_dev=$(zramctl --find --size $SIZE1)
-      mkswap $zram_dev
-      swapon $zram_dev
-      swapon /swapfile &&
-      sudo rm /etc/fstab &&
-      sudo touch /etc/fstab &&
-      sudo chmod 644 /etc/fstab &&
-      echo -e "LABEL=arch64 / btrfs defaults,noatime,compress=zstd:15,commit=30 0 0" | sudo tee -a /etc/fstab
-  else
-      # 读取用户输入的交换分区大小
-      echo -n "设置普通文件系统的交换分区大小（zram重启后启用，需要输入整数，比如输入 1234 为1.2G）："
-      read swap_size
-
-      # 根据用户输入的数字动态选择单位并计算交换分区大小
-      if [[ $swap_size -ge 1000 ]]; then
-          SIZE2=$(($swap_size/2/1024))"G"
-      elif (( $(echo "$swap_size > 1" | bc -l) )); then
-          SIZE2=$(($swap_size/2))"M"
       else
-          SIZE2=$(echo "$swap_size/1000" | bc -l)"G"
+          sudo sh -c 'echo "vswap='"${add_mem}"'" >> /etc/environment'
       fi
-  
-      # 创建交换分区并设置为自动启用
-      fallocate -l "$SIZE2" /swapfile &&
-      chmod 600 /swapfile &&
-      mkswap /swapfile &&
-      swapon /swapfile &&
-      echo -e "\n/swapfile swap swap defaults 0 0" >> /etc/fstab
-  fi
-  # 将 swap 分区添加到 /etc/fstab
-  if ! grep -qs '/swapfile' /etc/fstab; then
-    echo "将 swap 分区添加到 /etc/fstab"
-    if grep -q btrfs /etc/fstab; then
-      echo -e "/swapfile swap swap defaults 0 0" >> /etc/fstab
-    else
-      echo -e "\n/swapfile swap swap defaults 0 0" >> /etc/fstab
-    fi
   else
-    echo "已存在 swap 分区的项在 /etc/fstab 中，将不再执行添加命令"
+      echo "文件 /var/log/4gwifi 不存在"
   fi
   
-  echo "swap" > /var/log/鸡你太美
-  
-  
-  echo "Swap 已经设置。跳过 swap 设置。"
-
 }
 
+########################################################################################################################################################################################
 
-################################################################################################################################################################################
-
-if grep -q "swap" /var/log/鸡你太美; then
-  echo "Swap 已经设置。跳过 swap 设置。"
-else
-  echo "设置 Swap..."
-  skip_swap_setup
-fi
-
-################################################################################################################################################################################服务
-sys0() {
-
-script_content2="#!/bin/bash
-
-# 检查是否为半夜 2 点 30 分
-if [[ \$current_hour -eq 2 && \$current_minute -eq 30 ]]; then
-    if [[ -z \"\$container_ids\" ]]; then
-        echo \"没有找到任何正在运行的 Docker 容器。\"
-    else
-        # 逐个退出容器
-        for container_id in \$container_ids; do
-            echo \"正在退出容器: \$container_id\"
-            docker stop \$container_id
-        done
-
-        echo \"所有容器已成功退出。\"
-    fi
-    screen -dmS reboot1 bash -c \"btrfs filesystem defragment -r -v -czstd / && bash /etc/dconf/jntm/push.sh\"
-    reboot
-else
-    # 早上7到23时每15分钟执行一次
-    current_hour=\$(date +\%H)
-    current_minute=\$(date +\%M)
-    
-    if [ \"\$current_hour\" -ge 7 ] && [ \"\$current_hour\" -lt 11 ] && [ \"\$current_minute\" -eq 0 ]; then
-        echo \"执行命令：bash /etc/dconf/jntm/push.sh\"
-        bash /etc/dconf/jntm/push.sh
-    fi
-fi
-
-exit 0"
-
-echo "$script_content2" > /etc/dconf/jntm/quick.sh
-
-}
-#######################################################################################
 # 交换分区和启动命令
 sys1() {
 
 script_content="#!/bin/bash
 
-nmcli radio wifi off
-sleep 1
 sudo cpufreq-set -g performance
-
-# 关闭 zram0 交换分区
-sudo swapoff /dev/zram0
-sudo zramctl -r /dev/zram0
-# 加载 zram 模块
-sudo modprobe zram
-# 获取 /swapfile 文件的大小
-swapfile_size=\$(sudo du -h /swapfile | awk '{print \$1}')
-# 创建新的 zram0 交换分区
-zram_dev=\$(sudo zramctl --find --size \$swapfile_size)
-sudo mkswap \$zram_dev
-sudo swapon \$zram_dev
-
-sleep 10
-sudo sed -i 's/^reboot0=.*/reboot0=0/' /etc/environment
+echo 0 > /sys/class/leds/green\\:internet/brightness
 sleep 1
+echo timer > /sys/class/leds/green\\:internet/trigger
+export end=0
+
+# 函数：增加 log 值并执行测试命令
+update_log_and_run_test() {
+  log_file=\"/root/log.txt\"
+  # 检查 log 文件是否存在，如果不存在则创建并初始化为 1
+  if [ ! -f \"\$log_file\" ]; then
+    echo \"1\" > \"\$log_file\"
+  fi
+
+  # 读取 log 文件的当前值
+  current_value=\$(<\"\$log_file\")
+
+  # 将值加一
+  new_value=\$((current_value + 1))
+
+  # 将新值写回 log 文件
+  echo \"\$new_value\" > \"\$log_file\"
+
+  # 在这里添加您的测试命令
+  # 您可以使用 \$new_value 变量来获取 log 文件的当前值
+
+  # 示例：打印 log 文件的当前值
+  echo \"当前值：\$new_value\"
+}
+
+# 如果需要更改分区大小可以更改变量数字为vswap，重启会创建新的大小
+# 检查 /etc/environment 文件中的 swap 变量
+if grep -qE '^swap=' /etc/environment; then
+    # 找到变量
+    if grep -q 'swap' /etc/fstab; then
+        # 获取 /dev/zram0 设备的大小
+        zram_size=\$(blockdev --getsize64 /dev/zram0 | numfmt --to=iec)
+        # 获取 /swapfile 文件的大小
+        swapfile_size=\$(ls -lh /swapfile | awk '{print \$5}')
+        # 去除大小值中的单位
+        zram_size=\${zram_size//M/}
+        swapfile_size=\${swapfile_size//M/}
+        # 将两个大小值相加
+        total_size=\$((zram_size + swapfile_size))
+        # 从 /etc/environment 获取 vswap 的值
+        vswap_value=\$(grep -E '^swap=' /etc/environment | cut -d '=' -f 2)
+        echo \"total_size: \$total_size\"
+        echo \"vswap_value: \$vswap_value\"
+        # 比较大小值是否相等
+        if [ \"\$total_size\" -eq \"\$vswap_value\" ]; then
+            echo \"已设置zram0交换分区。\"
+        else
+            # 关闭 zram0 交换分区
+            sudo swapoff /dev/zram0
+            sudo zramctl -r /dev/zram0
+            # 加载 zram 模块
+            sudo modprobe zram
+            # 获取 /swapfile 文件的大小
+            swapfile_size=\$(sudo du -h /swapfile | awk '{print \$1}')
+            # 创建新的 zram0 交换分区
+            zram_dev=\$(sudo zramctl --find --size \$swapfile_size)
+            sudo mkswap \$zram_dev
+            sudo swapon \$zram_dev
+        fi
+    else
+        # 设置两倍zram0 交换分区
+        # 获取当前 zram0 交换分区的大小
+        zram0_size1=\$(blockdev --getsize64 /dev/zram0)
+        # 关闭 zram0 交换分区
+        sudo swapoff /dev/zram0
+        # 删除 zram0 设备
+        sudo zramctl -r /dev/zram0
+        # 创建两倍大小的新 zram0 交换分区
+        new_zram0_size1=\$((2 * zram0_size1))
+        sudo zramctl --find --size \$new_zram0_size1
+        # 格式化 zram0 交换分区
+        sudo mkswap /dev/zram0
+        # 启用新的 zram0 交换分区
+        sudo swapon /dev/zram0
+    fi
+else
+    # 检查 /etc/environment 文件中的 vswap 变量，# 没有找到变量，查找vswap变量
+    vswap_value=\$(grep -E '^vswap=' /etc/environment | cut -d '=' -f 2)
+
+    if [ -n \"\$vswap_value\" ]; then
+        echo \"在 /etc/environment 文件中找到 vswap 变量，其值为: \$vswap_value\"
+        if grep -q 'swap' /etc/fstab; then
+            echo \"Swap 分区已存在。\"
+            #关闭swap
+            swapoff /swapfile
+            #删除
+            rm -f /swapfile
+            # 检查 /etc/fstab 文件中是否包含关键字 \"btrfs\"
+            if grep -q 'btrfs' /etc/fstab; then
+                echo \"正在设置swap分区，zrm0在更新重启后会自动启用\"
+                # 清空 swapfile
+                sudo truncate -s 0 /swapfile
+                # 设置 swapfile 不可压缩
+                sudo chattr +C /swapfile
+                # 禁用 swapfile 压缩
+                sudo btrfs property set /swapfile compression none
+                # 从文件中读取 count 值
+                count=\$((\$vswap_value / 2))
+                # 向 swapfile 增加空间
+                dd if=/dev/zero of=/swapfile bs=1M count=\$count
+                # 设置 swapfile 权限
+                sudo chmod 600 /swapfile
+                # 创建 swap 区
+                sudo mkswap /swapfile
+                # 启用 swap
+                sudo swapon /swapfile
+                ## 添加开机启用
+                if grep -q \"compress=zstd:15,commit=30 0 0\" \"/etc/fstab\"; then
+                  echo \"找到关键字\"
+                else
+                  sudo echo -n > /etc/fstab
+                  echo -e \"LABEL=arch64 / btrfs defaults,noatime,compress=zstd:15,commit=30 0 0\" | sudo tee -a /etc/fstab
+                fi
+            else
+                # 从文件中读取大小值
+                size=\$((\$vswap_value / 2))
+    
+                # 检查大小值是否符合要求
+                if [[ \$size =~ ^[0-9]+(\.[0-9]+)?[MG]\$ && \$(echo \$size | sed 's/[0-9.]//g') != \"GG\" && \$(echo \$size | sed 's/[0-9.]//g') != \"MM\" && \$(echo \$size | sed 's/[0-9.]//g') != \"GM\" ]]; then
+                    # 创建 swapfile
+                    fallocate -l \$size /swapfile
+                    # 设置正确的权限
+                    chmod 600 /swapfile
+                    # 格式化 swap 文件
+                    mkswap /swapfile
+                    # 启用 swap 文件
+                    swapon /swapfile
+                    echo \"脚本执行成功！Swap 文件大小为 \$size\"
+                else
+                    echo \"文件内容错误，请检查 /root/wifi 文件的第 3 行内容！\"
+                fi
+            fi
+        fi
+        # 关闭 zram0 交换分区
+        sudo swapoff /dev/zram0
+        sudo zramctl -r /dev/zram0
+        # 加载 zram 模块
+        sudo modprobe zram
+        # 获取 /swapfile 文件的大小
+        swapfile_size=\$(sudo du -h /swapfile | awk '{print \$1}')
+        # 创建新的 zram0 交换分区
+        zram_dev=\$(sudo zramctl --find --size \$swapfile_size)
+        sudo mkswap \$zram_dev
+        sudo swapon \$zram_dev
+        sleep 3
+        # 获取 /dev/zram0 设备的大小
+        zram_size=\$(blockdev --getsize64 /dev/zram0 | numfmt --to=iec)
+        # 获取 /swapfile 文件的大小
+        swapfile_size=\$(ls -lh /swapfile | awk '{print \$5}')
+        # 去除大小值中的单位
+        zram_size=\${zram_size//M/}
+        swapfile_size=\${swapfile_size//M/}
+        # 将两个大小值相加
+        total_size=\$((zram_size + swapfile_size))
+        # 从 /etc/environment 获取 vswap 的值
+        vswap_value=\$(grep -E '^vswap=' /etc/environment | cut -d '=' -f 2)
+        # 比较大小值是否相等
+        if [ \"\$total_size\" -eq \"\$vswap_value\" ]; then
+            # 已将 vswap 替换为 swap
+            sudo sed -i 's/^vswap=/swap=/' /etc/environment
+        else
+            echo \"交换分区和 zram0 交换分区大小之和不等于 vswap 的值。\"
+        fi
+    else
+        echo \"Swap 分区不存在。\"
+    fi
+    echo \"在 /etc/environment 文件中未找到 vswap 变量。\"
+fi
+
+if ! grep -qs '/swapfile' /etc/fstab; then
+  echo \"将 swap 分区添加到 /etc/fstab\"
+  if grep -q btrfs /etc/fstab; then
+    echo -e \"/swapfile swap swap defaults 0 0\" >> /etc/fstab
+  else
+    echo -e \"\n/swapfile swap swap defaults 0 0\" >> /etc/fstab
+  fi
+else
+  echo \"已存在 swap 分区的项在 /etc/fstab 中，将不再执行添加命令\"
+fi
+swap_value=\$(grep -oP '(?<=^swap=).*' /etc/environment)
+# 检查swap变量是否小于300
+if (( swap_value < 300 )); then
+    # swap变量小于300
+    export 4GWiFi1=1
+else
+    # swap变量大于等于300
+    export 4GWiFi1=0
+fi
+######################################################
+# 设置热点
+wifisys() {
+
+        # 检查 /etc/environment 文件是否含有变量 4Gwifi
+        if grep -q \"4Gwifi=\" /etc/environment; then
+            # 执行 nmcli connection show 命令，并将输出保存到变量中
+            output=\$(nmcli connection show)
+            # 检查是否存在包含 \"modem\" 的连接
+            connection_name=\$(echo \"\$output\" | awk '/modem/ {print \$1}')
+            if [ -n \"\$connection_name\" ]; then
+              # 检查连接是否已激活
+              active_connection=\$(echo \"\$output\" | awk '/[[:space:]]+connected[[:space:]]+/ {print \$1}')
+              if [ \"\$active_connection\" == \"\$connection_name\" ]; then
+                echo -e \"连接已经激活: \e[32m\$active_connection\e[0m\"
+              else
+                # 激活连接
+                nmcli connection up \"\$connection_name\"
+                echo -e \"已激活连接: \e[32m\$connection_name\e[0m\"
+              fi
+            else
+              echo \"未找到包含 'modem' 的连接\"
+            fi
+            sleep 1
+            # 执行 nmcli connection show 命令，并将输出保存到变量中
+            output=\$(nmcli connection show)
+
+            # 检查输出是否包含 hotspot 变量的值
+            if [[ \$output =~ \$hotspot ]]; then
+                # 查找名字以 wifi. 或 wifi- 开头的文件，并匹配 hotspot 变量
+                files=\$(ls /etc/NetworkManager/system-connections/ | grep -E '^wifi(\.|-).*' | grep -v \"\$hotspot\")
+                # 删除匹配的文件（保留 hotspot 对应的文件）
+                for file in \$files; do
+                    rm \"/etc/NetworkManager/system-connections/\$file\"
+                done
+                # 执行 nmcli 连接热点
+                hotspot=\"\$hotspot\" nmcli connection up \"\$hotspot\"
+            else
+                # 读取 /etc/environment 文件中的 4Gwifi 变量
+                four_g_wifi=\$(grep -oP '^4Gwifi=\K.*' /etc/environment)
+                # 拆分名字和密码
+                IFS='//' read -r name password <<< \"\$four_g_wifi\"
+                # 输出名字和密码
+                echo \"名字: \$name3\"
+                echo \"密码: \$password3\"
+                # 如果不一致则启用热点并且向 \$hotspot 写入新的 UUID
+                output3=\$(nmcli d wifi hotspot ifname wlan0 con-name wifi ssid \"\$name3\" band bg channel 11 password \"\$password3\") # 更改名字密码为变量
+                # 提取连接的 UUID
+                uuid1=\$(echo \"\${output3}\" | awk '{print \$2}')
+                # 去除双引号和前缀 \"wlan0\"
+                uuid1=\${uuid1//\"/}
+                uuid1=\${uuid1#wlan0}
+                # 去除另一行的 \"nmcli\"
+                uuid1=\$(echo \"\$uuid1\" | sed '/^\$/d' | sed 's/nmcli//g')
+                # 将 UUID 写入文件
+                echo \"\$uuid1\"
+                # 检查 /etc/environment 文件是否存在
+                if [[ -f /etc/environment ]]; then
+                    # 检查 /etc/environment 文件中是否已经定义了变量 \$hotspot
+                    if grep -q \"^hotspot=\" /etc/environment; then
+                        # 如果已经定义了变量 \$hotspot，则使用 sed 命令进行替换
+                        sed -i \"s/^hotspot=.*/hotspot=\$uuid1/\" /etc/environment
+                    else
+                        # 如果没有定义变量 \$hotspot，则在文件末尾添加新的变量定义
+                        echo \"hotspot=\$uuid1\" >> /etc/environment
+                    fi
+                fi
+            fi
+        else
+            echo \"变量 4Gwifi 不存在。跳过创建热点。\"
+        fi
+        # 检查环境变量的值
+        if [[ \"\${4GWIFI1}\" == \"1\" ]]; then
+            echo \"环境变量4GWIFI1的值为 1\"
+        elif [[ \"\${4GWIFI1}\" == \"0\" ]]; then
+            # 环境变量4GWIFI1的值为 0
+            output5=\$(byobu-enable 2>&1)
+            if [[ \$output5 == *\"byobu-disable\"* ]]; then
+                echo \"Byobu 已启用\"
+                byobu-disable
+                sleep 1
+                byobu-enable
+            else
+                echo \"Byobu 未启用\"
+                byobu-disable
+                sleep 1
+                byobu-enable
+            fi
+        else
+            echo \"环境变量4GWIFI1的值不是 1 也不是 0\"
+        fi
+
+
+}
+sleep 5
+################################################# 调用函数
+cpusys() {
+
+echo none > /sys/class/leds/green\\:internet/trigger
+sleep 1
+export end=1
+echo timer > /sys/class/leds/green\\:internet/trigger
+
+# 设置 LED 设备路径
+led_device=\"/sys/class/leds/green:internet\"
+
+# 获取当前 CPU 占用率
+cpu_usage=\$(top -bn1 | grep \"Cpu(s)\" | awk '{print \$2}' | awk -F. '{print \$1}')
+
+# 定义 CPU 占用率阈值和 LED 闪烁频率的关系
+cpu_threshold=50  # CPU 占用率阈值，超过该值 LED 闪烁频率会增加
+min_delay=100  # 最小延迟（单位：毫秒），LED 闪烁的最低频率
+max_delay=1000  # 最大延迟（单位：毫秒），LED 闪烁的最高频率
+
+# 根据 CPU 占用率计算 LED 闪烁频率
+if [[ \$cpu_usage -gt \$cpu_threshold ]]; then
+  # 根据 CPU 占用率和阈值的关系计算延迟值
+  cpu_delay=\$((min_delay + (max_delay - min_delay) * (cpu_usage - cpu_threshold) / (100 - cpu_threshold)))
+
+  # 将延迟值应用到 LED 设备
+  echo \$cpu_delay > \"\$led_device/delay_on\"
+  echo \$cpu_delay > \"\$led_device/delay_off\"
+elif [[ \$cpu_usage -lt 15 ]]; then
+  # CPU 占用率低于 15% 时，将 LED 设备触发器模式设置为 \"heartbeat\"
+  echo none > /sys/class/leds/green\\:internet/trigger
+  sleep 1
+  echo heartbeat > \"\$led_device/trigger\"
+fi
+
+# 显示 CPU 占用率
+echo \"CPU 占用率: \$cpu_usage%\"
+
+}
+
+pingwifi() {
+	
+# Ping 百度网站并执行相应操作
+if ping -c 1 www.baidu.com >/dev/null 2>&1; then
+    # 检查 Docker 是否已安装
+    if command -v docker &> /dev/null; then
+        if systemctl is-enabled docker &> /dev/null; then
+            systemctl disable docker
+        else
+            systemctl start docker
+        fi
+    else
+        echo \"Docker 未安装，跳过...\"
+    fi
+    #bash /etc/dconf/jntm/push.sh
+    echo none > /sys/class/leds/blue\\:wifi/trigger
+    sleep 2
+    echo phy0tx > /sys/class/leds/blue\\:wifi/trigger
+else
+    echo none > /sys/class/leds/blue\\:wifi/trigger
+    sleep 1
+    echo none > /sys/class/leds/green\\:internet/trigger
+    sleep 1
+    sudo sh -c \"echo timer > /sys/class/leds/blue\\:wifi/trigger && echo 500 > /sys/class/leds/blue\\:wifi/delay_on && echo 500 > /sys/class/leds/blue\\:wifi/delay_off\" && sleep 1
+fi
+
+}
+
+# 定义循环函数 run_loop
+run_loop() {
+    export end=1
+    while true; do
+        current_time3=\$(date +%H:%M)  # 获取当前时间，格式为小时:分钟
+
+        # 在这里写入您想要执行的命令
+        cpusys
+        sleep 2
+        pingwifi
+        # 获取系统平均负载计算led频率
+        # 添加条件来停止循环
+        if [[ \$current_time3 > \"02:20\" && \$current_time3 < \"02:30\" ]]; then
+            break
+            if [[ \$(grep -c btrfs /proc/mounts) -gt 0 ]]; then
+              btrfs filesystem defragment -r -v -czstd / && sleep 6
+            else
+              echo \"系统文件不是btrfs，取消执行压缩系统命令\"
+            fi
+            f
+        fi
+
+        sleep 60  # 等待 60 秒
+    done
+}
+
+
+# 读取中央处理器温度控制led频率
+run_loop2() {
+
+export end=1
+
+while true; do
+    # 获取 CPU 温度
+    cpu_temp=\$(cat /sys/class/thermal/thermal_zone0/temp)
+    cpu_temp=\$((cpu_temp / 1000))  # 转换为摄氏度
+    # 读取触发器名称
+    trigger_command=\$(cat \"/sys/class/leds/green:internet/trigger\")
+    trigger_name=\$(echo \"\$trigger_command\" | awk -F '\\\\[' '{print \$2}' | awk -F '\\\\]' '{print \$1}')
+
+    echo \"LED触发器名称: \$trigger_name\"
+
+    # 检查 CPU 温度是否超过 65 度
+    if [[ \$cpu_temp -gt 65 ]]; then
+        # CPU 温度超过 65 度
+        # 设置 LED 快速闪烁
+        if [ \"\$trigger_name\" != \"timer\" ]; then
+            sudo sh -c \"echo timer > /sys/class/leds/green:internet/trigger && echo 200 > /sys/class/leds/green:internet/delay_on && echo 200 > /sys/class/leds/green:internet/delay_off\"
+            echo \"超过65\"
+        fi
+    else
+        # CPU 温度没有超过 65 度
+        if [ \"\$trigger_name\" != \"heartbeat\" ]; then
+            echo heartbeat > /sys/class/leds/green:internet/trigger
+            echo \"低于65\"
+        fi
+    fi
+    update_log_and_run_test #########################
+    sleep 60  # 等待 50 秒
+done
+}
+
+ledsy() {
+
+sleep 1
+
+# 读取 /etc/environment 文件中的环境变量
+while read -r line; do
+    export \"\$line\"
+done < /etc/environment
+
+# 使用读取的环境变量
+echo \"LED 环境变量的值是：\$LED\"
+# 检查 LED 环境变量的值并显示相应的提示
+if [[ \"\$LED\" == \"0\" ]]; then
+    echo \"LED 的值为 0\"
+    export end=1
+    echo 0 > /sys/class/leds/mmc0\\:\\:/brightness #红灯
+    echo none > /sys/class/leds/blue\\:wifi/trigger #蓝灯
+    echo none > /sys/class/leds/green\\:internet/trigger #绿灯
+    exit 0
+else
+    # 检查文件夹是否存在
+    #if [[ \"\$Host\" == \"1\" ]]; then
+        #echo 0 > /sys/class/leds/green\\:internet/brightness
+    #else
+        #echo timer > /sys/class/leds/green\\:internet/trigger
+    #fi
+    pingwifi
+    if [ -d \"/etc/dconf/jntm\" ]; then
+        echo \"文件夹 /etc/dconf/jntm 已存在.\"
+    
+        # 检查文件是否存在
+        if [ -f \"/etc/dconf/jntm/led\" ]; then
+            echo \"文件 /etc/dconf/jntm/led 已存在.\"
+        else
+            echo \"文件 /etc/dconf/jntm/led 不存在，创建文件...\"
+            touch \"/etc/dconf/jntm/led\"
+            echo \"文件 /etc/dconf/jntm/led 创建成功.\"
+        fi
+    else
+        mkdir -p \"/etc/dconf/jntm\"
+        touch \"/etc/dconf/jntm/led\"
+        echo \"文件夹 /etc/dconf/jntm 及文件 /etc/dconf/jntm/led 创建成功.\"
+    fi
+    sudo cpufreq-set -g ondemand
+    
+    # 读取环境变量 host
+    host_value=\"\$host\"
+    # 检查 host 的值
+    if [[ \"\$host_value\" == \"1\" ]]; then
+        # host 的值为 1
+        run_loop
+    elif [[ \"\$host_value\" == \"0\" ]]; then
+        # host 的值为 0
+        run_loop2
+    else
+        echo \"host 的值既不是 1 也不是 0\"
+    fi
+fi
+
+}
+######################################################
+nmcli radio wifi off
+update_log_and_run_test #########################
+sudo sed -i 's/^reboot0=.*/reboot0=0/' /etc/environment
+
 sudo sed -i 's/^LEDoff=.*/LEDoff=0/' /etc/environment
-sleep 10
+sleep 5
 nmcli radio wifi on
+update_log_and_run_test #########################
 sleep 2
 # 执行 ifconfig 命令并将输出保存到变量中
 output=\$(ifconfig usb0)
-sleep 1
+sleep 2
 # 使用 grep 命令在输出中查找目标字符串
 if echo \"\$output\" | grep -q \"inet 10.42.0.1\"; then
-    sudo sed -i 's/^host=.*/host=0/' /etc/environment
+    sudo sed -i 's/^Host=.*/Host=0/' /etc/environment
+    export host=0
+    update_log_and_run_test #########################
 else
+    # 启用主机模式
     echo host > /sys/kernel/debug/usb/ci_hdrc.0/role
-    sleep 1
-    sudo sed -i 's/^host=.*/host=1/' /etc/environment
-    sleep 1
+    sleep 2
+    echo none > /sys/class/leds/green\\:internet/trigger && sleep 1
+    sleep 2
+    sudo sed -i 's/^Host=.*/Host=1/' /etc/environment
+    sleep 2
     # 执行 fdisk -l 命令并将结果保存到变量中
     output=\$(fdisk -l)
-    sleep 1
+    export host=1
+    sleep 5
     # 使用正则表达式匹配设备信息，并将匹配结果保存到数组中
     regex='/dev/sda1\s+[0-9]+\s+[0-9]+\s+[0-9]+\s+([0-9.]+[KMG]?)\s+Linux filesystem'
     devices=()
@@ -292,228 +777,80 @@ else
         echo \"未找到匹配的设备。\"
     fi
 fi
-sleep 3
-# Ping 百度网站并执行相应操作
-if ping -c 1 www.baidu.com >/dev/null 2>&1; then
-    # 检查 Docker 是否已安装
-    if command -v docker &> /dev/null; then
-        if systemctl is-enabled docker &> /dev/null; then
-            systemctl disable docker
-        else
-            systemctl start docker
-        fi
-    else
-        echo \"Docker 未安装，跳过...\"
-    fi
-    bash /etc/dconf/jntm/push.sh
-else
-    echo \"无法连通 www.baidu.com\"
-fi
+
 sleep 1
-# 读取 /etc/environment 文件中的环境变量
-while read -r line; do
-    export \"\$line\"
-done < /etc/environment
-
-# 使用读取的环境变量
-echo \"LED 环境变量的值是：\$LED\"
-
-# 检查 LED 环境变量的值并显示相应的提示
-if [[ \"\$LED\" == \"0\" ]]; then
-    echo \"LED 的值为 0\"
-    echo 0 > /sys/class/leds/mmc0\\:\\:/brightness #红灯
-    echo none > /sys/class/leds/blue\\:wifi/trigger #蓝灯
-    echo none > /sys/class/leds/green\\:internet/trigger #绿灯
-else
-    # 检查文件夹是否存在
-    if [ -d \"/etc/dconf/jntm\" ]; then
-        echo \"文件夹 /etc/dconf/jntm 已存在.\"
-    
-        # 检查文件是否存在
-        if [ -f \"/etc/dconf/jntm/led\" ]; then
-            echo \"文件 /etc/dconf/jntm/led 已存在.\"
-        else
-            echo \"文件 /etc/dconf/jntm/led 不存在，创建文件...\"
-            touch \"/etc/dconf/jntm/led\"
-            echo \"文件 /etc/dconf/jntm/led 创建成功.\"
-        fi
-    else
-        mkdir -p \"/etc/dconf/jntm\"
-        touch \"/etc/dconf/jntm/led\"
-        echo \"文件夹 /etc/dconf/jntm 及文件 /etc/dconf/jntm/led 创建成功.\"
+while true; do
+    # 检查环境变量 end 是否为 1
+    if [ \"\$end\" = \"1\" ]; then
+        echo \"结束循环\"
+        sleep 1
+        sudo systemctl stop zram.service
+        break
     fi
-fi
-sleep 60
-sudo cpufreq-set -g ondemand
-sudo systemctl stop zram.service
-
+    update_log_and_run_test #########################
+    # 在这里编写您想要循环执行的代码
+    ledsy
+    pingwifi
+    # 等待一段时间
+    sleep 5
+done
+##################################################################################读取环境变量查询是否为主机模式，是则执行run_loop和run_loop2函数
+##################################################################################添加开机自动检测SIM卡并且查看是否符合开热点的条件，添加swap是否符合要求，否则不执行某一项命令
 exit 0"
 
-# 将脚本内容写入脚本文件
 echo "$script_content" > zram.sh
 
-echo '#脚本
-# 压缩算法，效果: zstd > lzo > lz4，速度: lz4 > zstd > lzo，默认lz4
-ALGO=zstd
+# Create zram.service file
+cat << EOL > /etc/systemd/system/zram.service
+[Unit]
+Description=Setup Zram swap
+After=local-fs.target
 
-#由于自定义了zram，此项作废
-PERCENT=10
-#SIZE=256
+[Service]
+ExecStartPre=/bin/sleep 25
+ExecStart=$jntm_path/zram.sh
+Type=oneshot
+RemainAfterExit=yes
 
-#交换分区优先级
-PRIORITY=300' > zramswap
+[Install]
+WantedBy=multi-user.target
+EOL
 
-######################################网络
+# Enable zram.service
+systemctl daemon-reload
+systemctl enable zram.service
 
-# 要添加到 hosts 文件中的 IP 地址和域名
-ip_list="157.148.69.80 www.baidu.com\n182.89.194.244 mirrors.aliyun.com\n140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com\n140.82.121.3 http://github.com\n140.82.121.3 http://gist.github.com\n185.199.110.153 http://assets-cdn.github.com\n185.199.108.133 http://raw.githubusercontent.com\n185.199.111.133 http://gist.githubusercontent.com\n185.199.110.133 http://cloud.githubusercontent.com\n185.199.111.133 http://camo.githubusercontent.com\n185.199.111.133 http://avatars0.githubusercontent.com\n185.199.110.133 http://avatars1.githubusercontent.com\n185.199.111.133 http://avatars2.githubusercontent.com\n185.199.109.133 http://avatars3.githubusercontent.com\n185.199.108.133 http://avatars4.githubusercontent.com\n185.199.111.133 http://avatars5.githubusercontent.com\n185.199.109.133 http://avatars6.githubusercontent.com\n185.199.109.133 http://avatars7.githubusercontent.com\n185.199.110.133 http://avatars8.githubusercontent.com\n185.199.108.133 http://avatars.githubusercontent.com\n185.199.111.154 http://github.githubassets.com\n185.199.109.133 http://user-images.githubusercontent.com\n140.82.112.9 http://codeload.github.com\n185.199.110.133 http://favicons.githubusercontent.com\n192.30.255.116 http://api.github.com"
+script_path="/usr/local/bin/u"
+script_content0='#!/bin/bash
 
-echo "$ip_list" | sudo tee -a /etc/hosts
-  
-echo "正在更改DNS服务器..."
-echo "nameserver 180.76.76.76" | sudo tee -a /etc/resolv.conf
-echo "nameserver 180.76.76.67" | sudo tee -a /etc/resolv.conf
-echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
-echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
-echo "nameserver 223.5.5.5" | sudo tee -a /etc/resolv.conf
-echo "nameserver 223.6.6.6" | sudo tee -a /etc/resolv.conf
-
-}
-
-#######################################################################################
-# 备份脚本
-sys2() {
-echo '#!/bin/bash
-
-# 定义恢复备份文件的函数
-function delete_backup_files {
-  local backup_dir=$1
-
-  # 提示用户是否删除文件
-  echo "您是否要删除备份文件？（按下回车键删除，否则跳过）"
-  read -t 6 -n 1 response
-
-  # 检查用户的响应
-  if [ "$response" == "" ]; then
-    # 如果用户按下回车键，则删除文件
-    sudo rm -f $backup_dir/docker.tar $backup_dir/docker.tar.xz
-    echo "文件已成功删除。"
-  else
-    # 如果用户没有按下回车键，则跳过删除操作
-    echo "文件未被删除。"
-  fi
-  
-  target_dir="/root/青龙脚本"
-  source_dir="/srv/ql/scripts"
-  
-  if [ ! -L "$target_dir" ]; then
-    echo "软链接不存在，正在创建..."
-    ln -s "$source_dir" "$target_dir"
-    echo "已创建"
-  else
-    echo "软链接已存在"
-  fi
-
-  #提示
-  sudo systemctl start docker
-  echo "容器在恢复过程中可能会轻微卡顿"
-  sleep 10
-  htop
-}
-
-# 询问用户备份/恢复操作
-echo "请选择您要进行的操作:"
-echo "1. 备份 /var/lib/docker 和 /srv 目录"
-echo "2. 恢复 /var/lib/docker 和 /srv 目录"
-read -p "请输入操作编号(1/2): " action
-
-# 备份操作
-if [ "$action" == "1" ]; then
-    # 询问用户要备份到哪个目录
-    read -p "请输入保存备份文件的路径: " backup_dir
-
-    while [ ! -d "$backup_dir" ]; do
-      echo "路径不存在或不是目录，请重新输入。"
-      read -p "请输入保存备份文件的路径: " backup_dir
-    done
-
-    # 如果备份目录不存在，则创建目录
-    sudo mkdir -p "$backup_dir"
-    echo "正在停止docker容器"
-    sudo docker stop $(sudo docker ps -aq)
-    sudo systemctl stop docker
-
-    # 检查 /var/lib/docker 和 /srv 目录是否都存在
-    if [[ -d /var/lib/docker ]] && [[ -d /srv ]]; then
-        # 询问用户要使用哪种压缩方法
-        read -p "请选择压缩方法 (gz/xz): " compression_method
-
-        # 根据用户选择的压缩方法进行备份
-        if [ "$compression_method" == "gz" ]; then
-            # 使用 tar 命令将 /var/lib/docker 和 /srv 目录压缩为 tar 格式的文件，并使用 pv 命令显示进度
-            backup_file="$backup_dir/docker.tar"
-            sudo tar -czf - /var/lib/docker /srv | pv -q -L 10M | sudo dd of="$backup_file" status=progress
-            echo "已备份 /var/lib/docker 和 /srv 目录到 $backup_file 中"
-
-        elif [ "$compression_method" == "xz" ]; then
-            # 使用 tar 和 xz 命令将 /var/lib/docker 和 /srv 目录压缩为 tar.xz 格式的文件，并使用 pv 命令显示进度
-            backup_file="$backup_dir/docker.tar.xz"
-            sudo tar -cJf - -C /var/lib "$(basename /var/lib/docker)" -C / srv | pv -q -L 10M | sudo dd of="$backup_file" status=progress
-            echo "已备份 /var/lib/docker 和 /srv 目录到 $backup_file 中"
-
-        else
-            # 如果用户输入了无效的压缩方法，则提示错误信息
-            echo "无效的压缩方法"
-        fi
-
-        echo "启动 Docker中"
-        sudo systemctl start docker
-
+# 设置尝试次数
+max_attempts=3
+attempt=1
+while [ $attempt -le $max_attempts ]; do
+    # 执行wget命令下载文件
+    wget "https://raw.githubusercontent.com/xiezh123/132/main/1" -O "/usr/local/bin/z"
+    
+    # 检查文件是否为空文件
+    if [ -s "/usr/local/bin/z" ]; then
+        echo "文件已成功下载并不为空。"
+        break
     else
-        echo "/var/lib/docker 或 /srv 目录不存在"
+        echo "文件为空或下载失败。尝试重新下载（尝试次数：$attempt）。"
+        attempt=$((attempt+1))
     fi
+done
+if [ $attempt -gt $max_attempts ]; then
+    echo "无法下载文件。尝试次数已达到上限。"
+fi'
 
-# 恢复操作
-elif [ "$action" == "2" ]; then
-    # 询问用户从哪个备份目录中恢复
-    read -p "请输入包含备份文件的路径: " backup_dir
+echo "$script_content0" > "$script_path"
+chmod +x "$script_path"
 
-    while [ ! -d "$backup_dir" ]; do
-      echo "路径不存在或不是目录，请重新输入。"
-      read -p "请输入保存备份文件的路径: " backup_dir
-    done
-
-    # 检查备份目录中是否存在 docker.tar 或 docker.tar.xz 文件
-    if [[ -f "$backup_dir/docker.tar" ]] || [[ -f "$backup_dir/docker.tar.xz" ]]; then
-        # 停止 Docker
-        echo "停止docker中"
-        sudo systemctl stop docker
-
-        # 解压缩 /var/lib/docker 目录，并使用 pv 命令显示进度
-        if [[ -f "$backup_dir/docker.tar" ]]; then
-            echo "正在恢复 /var/lib/docker 目录..."
-            sudo dd if="$backup_dir/docker.tar" status=progress | pv -q -L 10M | sudo tar -zxvf - -C /
-        elif [[ -f "$backup_dir/docker.tar.xz" ]]; then
-            echo "正在恢复 /var/lib/docker 目录..."
-            sudo dd if="$backup_dir/docker.tar.xz" status=progress | pv -q -L 10M | sudo tar -xJf - -C /
-        fi
-
-        echo "已恢复 /var/lib/docker 目录"
-        # 询问用户是否删除备份文件
-        delete_backup_files $backup_dir
-    else
-        echo "$backup_dir/docker.tar 或 $backup_dir/docker.tar.xz 文件不存在"
-    fi
-
-# 无效操作
-else
-    echo "无效的操作编号"
-fi
-
-' > /usr/local/bin/b
 }
-#######################################################################################
-# Led控制
+
+syssys() {
+######################################################################################## Led控制
+
 sys3() {
   echo '#!/bin/bash
 
@@ -760,52 +1097,34 @@ else
     poweroff
 fi" > /usr/local/bin/f
 
-}
-#######################################################################################
-# 启用系统服务
-sysd () {
-# Create led.service file
-cat << EOL > /etc/systemd/system/led.service
-[Unit]
-Description=Check network for jntm and led
+echo '#脚本
+# 压缩算法，效果: zstd > lzo > lz4，速度: lz4 > zstd > lzo，默认lz4
+ALGO=zstd
 
-[Service]
-Type=simple
-ExecStartPre=/bin/sleep 30
-ExecStart=/bin/bash /etc/dconf/jntm/quick.sh
-Restart=always
-RestartSec=30
+#由于自定义了zram，此项作废
+PERCENT=10
+#SIZE=256
 
-[Install]
-WantedBy=multi-user.target
-EOL
+#交换分区优先级
+PRIORITY=300' > zramswap
 
-# Enable led.service
-systemctl daemon-reload
-systemctl enable led.service
+######################################网络
 
-# Create zram.service file
-cat << EOL > /etc/systemd/system/zram.service
-[Unit]
-Description=Setup Zram swap
-After=local-fs.target
+# 要添加到 hosts 文件中的 IP 地址和域名
+ip_list="157.148.69.80 www.baidu.com\n182.89.194.244 mirrors.aliyun.com\n140.82.114.3 github.com\n185.199.108.153 assets-cdn.github.com\n199.232.69.194 github.global.ssl.fastly.net\n151.101.0.133 raw.githubusercontent.com\n140.82.121.3 http://github.com\n140.82.121.3 http://gist.github.com\n185.199.110.153 http://assets-cdn.github.com\n185.199.108.133 http://raw.githubusercontent.com\n185.199.111.133 http://gist.githubusercontent.com\n185.199.110.133 http://cloud.githubusercontent.com\n185.199.111.133 http://camo.githubusercontent.com\n185.199.111.133 http://avatars0.githubusercontent.com\n185.199.110.133 http://avatars1.githubusercontent.com\n185.199.111.133 http://avatars2.githubusercontent.com\n185.199.109.133 http://avatars3.githubusercontent.com\n185.199.108.133 http://avatars4.githubusercontent.com\n185.199.111.133 http://avatars5.githubusercontent.com\n185.199.109.133 http://avatars6.githubusercontent.com\n185.199.109.133 http://avatars7.githubusercontent.com\n185.199.110.133 http://avatars8.githubusercontent.com\n185.199.108.133 http://avatars.githubusercontent.com\n185.199.111.154 http://github.githubassets.com\n185.199.109.133 http://user-images.githubusercontent.com\n140.82.112.9 http://codeload.github.com\n185.199.110.133 http://favicons.githubusercontent.com\n192.30.255.116 http://api.github.com"
 
-[Service]
-ExecStartPre=/bin/sleep 45
-ExecStart=/etc/dconf/jntm/zram.sh
-Type=oneshot
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOL
-
-# Enable zram.service
-systemctl daemon-reload
-systemctl enable zram.service
+echo "$ip_list" | sudo tee -a /etc/hosts
+  
+echo "正在更改DNS服务器..."
+echo "nameserver 180.76.76.76" | sudo tee -a /etc/resolv.conf
+echo "nameserver 180.76.76.67" | sudo tee -a /etc/resolv.conf
+echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf
+echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf
+echo "nameserver 223.5.5.5" | sudo tee -a /etc/resolv.conf
+echo "nameserver 223.6.6.6" | sudo tee -a /etc/resolv.conf
 
 }
-
+#######################################################################################推送脚本
 push0() {
 
 sudo tee /etc/dconf/jntm/push.sh <<EOF
@@ -842,36 +1161,9 @@ curl -X GET "\$url" -H "Content-Type: application/json" -d "\$json"
 exit 0
 EOF
 
-script_path="/usr/local/bin/u"
-script_content0='#!/bin/bash
 
-# 设置尝试次数
-max_attempts=3
-attempt=1
-
-while [ $attempt -le $max_attempts ]; do
-    # 执行wget命令下载文件
-    wget "https://raw.githubusercontent.com/xiezh123/132/main/1" -O "/usr/local/bin/z"
-    
-    # 检查文件是否为空文件
-    if [ -s "/usr/local/bin/z" ]; then
-        echo "文件已成功下载并不为空。"
-        break
-    else
-        echo "文件为空或下载失败。尝试重新下载（尝试次数：$attempt）。"
-        attempt=$((attempt+1))
-    fi
-done
-
-if [ $attempt -gt $max_attempts ]; then
-    echo "无法下载文件。尝试次数已达到上限。"
-fi'
-
-echo "$script_content0" > "$script_path"
-chmod +x "$script_path"
 
 }
-
 #######################################################################################
 # 赋予执行权限
 sys() {
@@ -883,14 +1175,23 @@ sys() {
   sudo chmod +x /etc/default/zramswap
   sudo chmod +x /etc/dconf/jntm/zram.sh
   sudo chmod +x /etc/dconf/jntm/LEDnetwork.sh
-  sudo chmod +x /usr/local/bin/b
   sudo chmod +x /usr/local/bin/f
   sudo chmod +x /usr/local/bin/u
-  sudo chmod +x /etc/dconf/jntm/quick.sh
   sudo chmod +x /etc/dconf/jntm/push.sh
   ###############################################环境变量
-  sudo sh -c 'echo "LED=1" >> /etc/environment'                      #led自启动
-  sudo sh -c 'echo "host=0" >> /etc/environment'                     #主机模式
+  file_path4="/etc/environment"
+
+  if [ -f "$file_path4" ]; then
+      # 检查文件中是否存在变量
+      if ! grep -q "LED=" "$file_path4"; then
+          sudo sh -c 'echo "LED=1" >> /etc/environment'
+      else
+          echo "已经配置led为关闭"
+      fi
+  else
+      echo "文件不存在."
+  fi                                                                 #led自启动
+  sudo sh -c 'echo "Host=0" >> /etc/environment'                     #主机模式
   sudo sh -c 'echo "LEDoff=0" >> /etc/environment'                   #led关闭
   sudo sh -c 'echo "LEDsys=1" >> /etc/environment'                   #led配置
   sudo sh -c 'echo "PushToken=0" >> /etc/environment'                #推送代码
@@ -901,27 +1202,37 @@ sys() {
 
 }
 
-########################################################################################################################################################################################
+######################################################################################
 
 # 检查/etc/dconf目录是否包含jntm文件夹
-if [ -d /etc/dconf/jntm ]; then
+if [ -d "/etc/dconf/jntm" ] && [ -f "/etc/zram.sh" ]; then
   echo "jntm文件夹已存在，跳过执行。"
 else
   echo "创建文件夹jntm"
-  mkdir /etc/dconf/jntm
-  sys0 >/dev/null 2>&1
-  sys1 >/dev/null 2>&1
-  sys2 >/dev/null 2>&1
-  sys3 >/dev/null 2>&1
-  push0 >/dev/null 2>&1
-  sys
-  sysd
-  echo "成功创建了脚本"
+  if [[ "$JNTM" == "1" ]]; then
+      echo "环境变量 JNTM 的值为 1"
+      sys1 >/dev/null 2>&1
+      sudo mv zram.sh /etc/zram.sh
+      jntm_path="/etc"
+      echo "成功创建了自启脚本"
+  else
+      echo "环境变量 JNTM 的值不为 1"
+      mkdir /etc/dconf/jntm
+      sys1 >/dev/null 2>&1
+      sys3 >/dev/null 2>&1
+      push0 >/dev/null 2>&1
+      sys
+      jntm_path="/etc/dconf/jntm"
+      echo "成功创建了脚本"
+  fi
 fi
-#sys是执行权限，sysd是系统服务的创建，sys1是zrm0的启用,2是备份脚本的创建，3是led的控制
 
-########################################################################################################################################################################################
-# 更新源函数
+
+#sys是执行权限，sysd是系统服务的创建，sys1是zrm0的启用,2是备份脚本的创建，3是led的控制
+#######################################################################################
+
+}
+###############################################################################################################################################################################更新源
 function set_debian_mirror() {
     mirror="mirrors.ustc.edu.cn"
 
@@ -936,6 +1247,7 @@ function set_debian_mirror() {
         if [ -n "$ip_address" ]; then
             echo "将 $mirror 的IP地址 $ip_address 添加到 hosts 文件中..."
             echo "$ip_address $mirror" | sudo tee -a /etc/hosts >/dev/null
+            echo "" > /etc/apt/sources.list
             echo "deb https://mirrors.ustc.edu.cn/debian/ bullseye main contrib non-free" > /etc/apt/sources.list
             echo "deb-src https://mirrors.ustc.edu.cn/debian/ bullseye main contrib non-free" >> /etc/apt/sources.list
             echo "deb https://mirrors.ustc.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list
@@ -958,6 +1270,7 @@ function set_debian_mirror() {
             else
                 echo "无法获取 $mirror2 的IP地址。"
             fi
+            echo "" > /etc/apt/sources.list
             echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
             echo "deb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list
             echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
@@ -985,53 +1298,17 @@ function set_debian_mirror() {
         set_debian_mirror
 
     fi
+    # 安装更新需要的工具
+    if dpkg -s screen cpufrequtils >/dev/null 2>&1; then
+      echo "screen 和 cpufrequtils 已安装"
+    else
+      sudo apt-get update
+      sudo apt-get install screen cpufrequtils -y
+    fi
 }
-
-# 调用函数
-set_debian_mirror
-
-# 检查screen和git是否已安装
-if ! command -v screen &> /dev/null
-then
-    echo "screen is not installed, installing now..."
-    sudo apt-get update
-    sudo apt-get install screen cpufrequtils -y
-else
-    echo "已经安装工具？？？"
-fi
-
-# 检查 screen 和 cpufrequtils 是否已安装
-if dpkg -s screen cpufrequtils >/dev/null 2>&1; then
-  echo "screen 和 cpufrequtils 已安装"
-else
-  echo -e "\033[31m更新失败，使用阿里源\033[0m"
-  echo "182.89.194.244 mirrors.aliyun.com" | sudo tee -a /etc/hosts
-  echo "deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" > /etc/apt/sources.list
-  echo "deb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib" >> /etc/apt/sources.list
-  echo "deb https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
-  echo "deb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main" >> /etc/apt/sources.list
-  echo "deb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
-  echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib" >> /etc/apt/sources.list
-  echo "deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
-  echo "deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib" >> /etc/apt/sources.list
-  sudo apt-get update
-  sudo apt-get install screen cpufrequtils -y
-fi
-
-#在根目录下创建，调整性能模式
-sudo mkdir /updata
-sudo cpufreq-set -g performance
-########################################################################################################################################################################################
-
-# 检查/etc/apt目录是否包含sources.list.backup文件
-if [ -f /etc/apt/sources.list.backup ]; then
-  echo "sources.list.backup文件已存在，跳过执行。"
-else
-  # 如果文件不存在，则调用sys函数
-  sys
-fi
-
-########################################################################################################################################################################################
+#################################################################################################################################################################################更新系统
+function set_debian_updata() {
+# 更新脚本/updata/1
 echo '#!/bin/bash
 
 clean_commands="apt-get clean
@@ -1086,7 +1363,7 @@ else
 fi
 # 安装推荐软件包
 echo "为您的系统安装推荐软件包"
-apt-get install gnupg2 byobu cron btop rsync preload pv sshpass curlftpfs irqbalance -y && sleep 3
+apt-get install gnupg2 byobu cron btop rsync preload pv sshpass curlftpfs irqbalance sysstat speedtest-cli -y && sleep 3
 
 # 确保docker目录存在
 mkdir -p /etc/docker
@@ -1171,12 +1448,7 @@ if command -v docker > /dev/null; then
   fi
 
 else
-  echo -e "\033[33m尝试安装失败，在尝试后如果失败请等待重启后终端输入 \033[32mz或者u \033[33m继续安装docker\033[0m"
-  curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-  sleep 1
-  echo "deb [arch=arm64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  sleep 1
-  sudo apt install docker-ce docker-ce-cli containerd.io
+  echo -e "\033[33m尝试安装失败，请等待重启后终端输入 \033[32mz \033[33m继续安装docker\033[0m"
 fi
 
 function function1 {
@@ -1262,6 +1534,19 @@ crontab mycron  #写入
 
 service  cron restart  #重启crontab
 
+# 编辑 /etc/default/sysstat 文件
+sudo sed -i 's/ENABLED="false"/ENABLED="true"/' /etc/default/sysstat
+
+# 启动 sysstat 服务
+sudo systemctl enable sysstat
+sudo systemctl start sysstat
+
+echo "sysstat 已启用并开始收集数据。"
+
+# 显示 sysstat 数据文件路径
+echo "sysstat 数据文件路径："
+ls /var/log/sysstat/
+
 #######################################################################################
 
 # 检查文件大小
@@ -1293,7 +1578,6 @@ echo -e "\033[33;32m如需执行脚本，可以在终端输入：z\033[0m"
 echo none > /sys/class/leds/green:internet/trigger && sleep 1
 sed -i 's/^byobu-status-exec "top"/#byobu-status-exec "top"/' ~/.byobu/status && sleep 2
 #驱动服务
-byobu-enable && sleep 1
 启动 irqbalance 服务
 sudo sh -c "echo 'IRQBALANCE_ONESHOT=yes' >> /etc/default/irqbalance"
 sudo systemctl start irqbalance
@@ -1302,8 +1586,11 @@ sudo mv /updata/2 /usr/local/bin/d
 sudo chmod +x /usr/local/bin/d
 sudo rm mycron
 sudo rm -rf /updata
+sudo mv /var/log/4gwifi /root
+sudo cp /etc/rc.local.backup /etc/rc.local
 #rm -rf /*
 sleep 1
+
 #创建docker数据映射目录
 ln -s /srv /root/容器映射目录
 sudo touch /var/log/up.log
@@ -1319,32 +1606,37 @@ if (( $(echo "$space_diff > 0" | bc -l) )); then
 else
     echo "磁盘空间减少了 $space_diff"
 fi
+if dpkg -s byobu &> /dev/null; then
+    byobu-enable
+    echo "byobu" >> /var/log/鸡你太美
+    current_time=$(date +%Y-%m-%d_%H:%M:%S)
 
-current_time=$(date +%Y-%m-%d_%H:%M:%S)
+    # 检查环境变量 MY_TIME
+    if [ -n "$MY_TIME" ]; then
+      # 计算时间差
+      start_time=$(date -d "$MY_TIME" +%s)
+      end_time=$(date -d "$current_time" +%s)
+      duration=$((end_time - start_time))
 
-# 检查环境变量 MY_TIME
-if [ -n "$MY_TIME" ]; then
-  # 计算时间差
-  start_time=$(date -d "$MY_TIME" +%s)
-  end_time=$(date -d "$current_time" +%s)
-  duration=$((end_time - start_time))
+      # 将时间差写入日志文件
+      minutes=$((duration / 60))
+      seconds=$((duration % 60))
+    fi
 
-  # 将时间差写入日志文件
-  minutes=$((duration / 60))
-  seconds=$((duration % 60))
+    # 将结果写入 /var/log/up.log 文件
+    echo "执行时间：$MY_TIME" >> /var/log/up.log
+    echo "磁盘空间变化情况：" >> /var/log/up.log
+    echo "---执行前---" >> /var/log/up.log
+    echo "$DF_BEFORE" >> /var/log/up.log
+    echo "---执行后---" >> /var/log/up.log
+    echo "$DF_AFTER" >> /var/log/up.log
+    echo "完成时间：$current_time" >> /var/log/up.log
+    echo "磁盘空间增加了 $space_diff，总共耗时${minutes}分${seconds}秒" >> /var/log/up.log
+else
+    echo "ssh未安装。"
 fi
-
-# 将结果写入 /var/log/up.log 文件
-echo "执行时间：$MY_TIME" >> /var/log/up.log
-echo "磁盘空间变化情况：" >> /var/log/up.log
-echo "---执行前---" >> /var/log/up.log
-echo "$DF_BEFORE" >> /var/log/up.log
-echo "---执行后---" >> /var/log/up.log
-echo "$DF_AFTER" >> /var/log/up.log
-echo "完成时间：$current_time" >> /var/log/up.log
-echo "磁盘空间增加了 $space_diff，总共耗时${minutes}分${seconds}秒" >> /var/log/up.log
 ' > /updata/1
-# 创建循环检查脚本
+# 创建循环检查脚本/updata/dog.sh
 echo '#!/bin/bash
 
 zero_count=0
@@ -1388,17 +1680,406 @@ echo "screen -d -r update" > "$FILE_PATH"
 # 赋予可执行权限
 chmod +x "$FILE_PATH"
 chmod +x /updata/dog.sh
-#新建窗口
-screen -dmS update bash -c "bash /updata/1"
+#新建窗口 update
+if screen -ls | grep -q "update"; then
+    echo "存在名为 'update' 的 Screen 会话"
+else
+    screen -dmS update bash -c "bash /updata/1"
+fi
 # 执行脚本
+sleep 3
+if screen -ls | grep -q "dog"; then
+    echo "存在名为 'dog' 的 Screen 会话"
+else
+    screen -dmS dog bash -c "bash /updata/dog.sh"
+fi
 sleep 1
-screen -dmS dog bash -c "bash /updata/dog.sh"
-sleep 1
+count3=$(screen -ls | grep "update" | wc -l)
+
+if [[ $count3 -ge 2 ]]; then
+    echo "存在 $count3 个名为 'update' 的 Screen 会话"
+    # 关闭多余的会话
+    screen -ls | grep "update" | awk '{print $1}' | head -n -1 | xargs -I {} screen -X -S {}
+    echo "已关闭多余的会话，只保留一个"
+elif [[ $count3 -eq 1 ]]; then
+    echo "存在一个名为 'update' 的 Screen 会话"
+else
+    echo "不存在名为 'update' 的 Screen 会话"
+fi
+sleep 3
+# 查看/updata/1窗口运行
 screen -d -r update
 #screen -d -r dog
+}
+#########################################################################################################################################################################################
+#########################################################################################################################################################################################
+#########################################################################################################################################################################################
+function ipx {
+
+script_path=$(dirname "$(realpath "$0")")
+script_name=$(basename "$0")
+
+# 执行命令并获取闪存质量输出
+output=$(cat /sys/class/mmc_host/mmc0/mmc0:0001/life_time)
+
+# 定义提示信息变量
+message=""
+
+# 判断输出结果
+if [[ $output == "0x"* ]]; then
+    value=${output#*x}  # 去除前缀 "0x"
+    value=${value// /}  # 移除空格
+    value=${value^^}   # 转换为大写
+    
+    if [[ $value == "00" ]]; then
+        message="未知"
+    elif [[ $value < "0505" ]]; then
+        message="良好"
+    elif [[ $value < "0707" ]]; then
+        message="一般"
+    else
+        message="严重"
+    fi
+else
+    message="未知"
+fi
+# 网络连通性检测
+host_number() {
+                        sleep 3
+                        # 执行 ifconfig 命令并将输出保存到变量中
+                        output=$(ifconfig usb0)
+                        sleep 1
+                        echo none > /sys/class/leds/blue\:wifi/trigger #蓝灯
+                        echo none > /sys/class/leds/green\:internet/trigger #绿灯
+                        # 使用 grep 命令在输出中查找目标字符串
+                        if echo "$output" | grep -q "inet 10.42.0.1"; then
+                            echo "usb0 接口具有ip内容，接口处于使用状态，将保持状态"
+                            echo cpu > /sys/class/leds/green\:internet/trigger
+                        else
+                            echo "usb0 接口没有ip内容，接口处于未使用状态，切换主机模式"
+                            echo host > /sys/kernel/debug/usb/ci_hdrc.0/role
+                            sudo sh -c "echo timer > /sys/class/leds/blue\:wifi/trigger && echo 500 > /sys/class/leds/blue\:wifi/delay_on && echo 500 > /sys/class/leds/blue\:wifi/delay_off" && sleep 1
+                            sleep 6
+                        fi
+                        sleep 3
+                        echo "测试更新中"
+                        # 清空 /etc/apt/sources.list 文件内容
+                        echo "" > /etc/apt/sources.list
+                        # 添加清华大学开源软件镜像站的源到 /etc/apt/sources.list 文件
+                        echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free" > /etc/apt/sources.list
+                        echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free" >> /etc/apt/sources.list
+                        check_update_status() {
+                            local update_output="$1"
+                            if apt list --upgradable | grep -qE '^.+/.+ '; then
+                                if echo "$update_output" | grep -q "暂时不能解析域名"; then
+                                    echo "需要重启"
+                                    quick_reboot
+                                else
+                                    apt list --upgradable
+                                    echo "当前状态可以更新"
+                                    export Network=1
+                                fi
+                            else
+                                if echo "$update_output" | grep -q "正在读取软件包列表" && echo "$update_output" | grep -q "正在分析软件包的依赖关系树" && echo "$update_output" | grep -q "正在读取状态信息" && echo "$update_output" | grep -q "所有软件包均为最新"; then
+                                    echo "所有软件包均为最新。"
+                                else
+                                    echo "更新软件包..."
+                                    # 执行更新软件包的操作
+                                    export Network=1
+                                fi
+                            fi
+                        }
+                        # 执行 apt update 命令，并将输出直接显示在终端上
+                        update_output=$(apt update 2>&1 | tee /dev/tty)
+                        ping -c 1 www.baidu.com > /dev/null  # 发送一个ping请求到百度
+                        if [ $? -eq 0 ]; then
+                            echo "通过"
+                            if [[ -z "${SH}" ]]; then
+                                echo "环境变量 SH 不存在。"
+                            else
+                                #环境变量 SH 存在
+                                check_update_status "$update_output"
+                            fi
+                        else
+                            sleep 3
+                            ping -c 1 www.baidu.com > /dev/null
+                            if [ $? -eq 0 ]; then
+                                echo "第一次尝试通过"
+                            else
+                                ping -c 1 8.8.8.8 > /dev/null  # 发送一个ping请求到谷歌
+                                if [ $? -eq 0 ]; then
+                                    echo "第二次尝试通过"
+                                    check_update_status "$update_output"
+                                else
+                                    if [[ -z "${SH}" ]]; then
+                                        echo "环境变量 SH 不存在。"
+                                    else
+                                        #环境变量 SH 存在
+                                        /sbin/reboot
+                                    fi
+                                    echo "第三次ping测试失败，没有网络？？？"
+                                    check_update_status "$update_output"
+                                    sudo sh -c "echo timer > /sys/class/leds/blue\:wifi/trigger && echo 1000 > /sys/class/leds/blue\:wifi/delay_on && echo 1000 > /sys/class/leds/blue\:wifi/delay_off"
+                                    count=0
+                                    max_attempts=$((15 * 60 / 5))  # 15分钟内的最大尝试次数
+                                    echo none > /sys/class/leds/green\:internet/trigger #绿灯
+                                    while true; do
+                                    if ping -c 1 www.baidu.com > /dev/null; then
+                                        echo "Ping 成功。"
+                                        export Network=1
+                                        break
+                                    else
+                                        count=$((count + 1))
+
+                                        if [ $count -eq $max_attempts ]; then
+                                            echo "15分钟内未能成功Ping。执行系统挂起操作。"
+                                            systemctl suspend
+                                            break
+                                        fi
+
+                                        echo -e "\033[31mPing 失败。6秒后重试...（请查看网络是否正常）\033[0m"
+                                        sleep 6
+                                        echo 255 > /sys/class/leds/mmc0\:\:/brightness
+                                    fi
+                                    done
+                                fi
+                            fi
+                        fi
+                        echo phy0tx > /sys/class/leds/blue\:wifi/trigger
 
 }
 
+if [ -e "$script_path/4gwifi" ]; then  # 检查文件是否存在
+    echo "目录中包含4gwifi文件"
+    # 检查第三行数值是否大于300
+    content7=$(sed -n '3p' "$script_path/4gwifi")  # 获取第三行内容
+    if [ "$content7" -ge 300 ]; then
+        echo "第三行内容大于或等于300，设置开机执行后更新"
+        # 写入环境变量SH
+        export SH=1
+        host_number
+        sleep 1
+        # 读取环境变量
+        if [[ -z "${Network}" ]]; then
+            # 环境变量 Network 不存在。"
+            quick_reboot #开机执行更新
+        else
+            # 执行常规更新
+            # 环境变量 Network 存在
+            sys1 >/dev/null 2>&1 #添加脚本自启
+            syssys >/dev/null 2>&1 #添加脚本
+            set_debian_mirror #更新源
+            set_debian_updata # 更新系统
+        fi
+    else
+        echo "第三行内容低于300，为你设置开机自启"
+        # 更新只添加开机sys1自启，将脚本函数分开并且配置一些内核参数
+        sys1 >/dev/null 2>&1
+        exit 0
+    fi
+else
+    # 目录中不包含4gwifi文件
+    echo "正在检查网络" 
+    ping -c 5 www.baidu.com  # 执行ping命令，发送4个ICMP请求
+    if [ $? -eq 0 ]; then  # 检查ping命令的返回值
+        echo "Ping成功"
+        # 执行常规更新
+        #ip（添加脚本函数）
+        # 检查文件是否存在
+        if [[ -e "/var/log/4gwifi" ]]; then  #########################################################################################################
+            host_number #检查网络
+            skip_swap_setup  # 检查swap
+            sys1 >/dev/null 2>&1
+            syssys >/dev/null 2>&1#添加脚本自启
+            set_debian_mirror #更新源
+            # 检查 screen 和 cpufrequtils 是否已安装
+            if dpkg -s screen cpufrequtils >/dev/null 2>&1; then
+                sudo mkdir /updata
+                sudo cpufreq-set -g performance
+                echo "screen 和 cpufrequtils 已安装"
+                # 检查/etc/apt目录是否包含sources.list.backup文件
+                if [ -f /etc/apt/sources.list.backup ]; then
+                    echo "sources.list.backup文件已存在，跳过执行。"
+                    set_debian_updata # 更新系统
+                else
+                    # 如果文件不存在，则调用sys函数
+                    echo "ok"
+                fi
+            else
+                # 没有成功安装更新需要的工具
+                systemctl suspend
+                exit 1
+            fi
+        else
+            # 提示声明，为网络拉取更新
+            # 文件 /var/log/4gwifi 不存在
+            # 检查 Docker 是否已安装
+            if command -v docker &> /dev/null; then
+                echo "耍我呢，脚本不支持运行（受虐滑稽）:):):)"
+                echo "安装docker后默认不再运行"
+                exit 1
+            else
+                ip_address=$(ip addr show wlan0 | grep 'inet ' | awk '{print $2}' | cut -d '/' -f 1)
+                if [ -e "/var/log/鸡你太美" ]; then #检查标志文件
+                    if [ -f "/var/log/up.log" ]; then
+                        echo "脚本已经过了"
+                        exit 0
+                    else
+                        current_time=$(date +"%H:%M")  # 获取当前时间，精确到小时和分钟
+                        current_date=$(date +"%Y-%m-%d")  # 获取当前日期
+                        echo "  _____ _                 _    _               "
+                        echo " |_   _| |               | |  (_)              "
+                        echo "   | | | |__   __ _ _ __ | | ___ _ __   __ _   "
+                        echo "   | | | '_ \\ / _\` | '_ \\| |/ / | '_ \\ / _\` |  "
+                        echo "  _| |_| | | | (_| | | | |   <| | | | | (_| |  "
+                        echo " |_____|_| |_|\\__,_|_| |_|_|\\_\\_|_| |_|\\__, |  "
+                        echo "                                        __/ |  "
+                        echo "                                       |___/   "
+                        echo "$current_date  $current_time"
+                        export SH=0
+                        host_number #检查网络
+                        if [ -d "/etc/dconf/jntm" ]; then
+                            # 检查文件 1 和 dog.sh 是否存在
+                            if [ -f "/updata/1" ] && [ -f "/updata/dog.sh" ]; then
+                                if [[ -z "${Network}" ]]; then
+                                    # 环境变量 Network 不存在
+                                    echo "没网玩什么玩"
+                                    exit 0
+                                else
+                                    set_debian_updata #更新函数
+                                fi
+                            else
+                                echo "好看嘛，还不快帮我改改"
+                                exit 0
+                            fi
+                        else
+                            # 没有/updata
+                            echo "我靠！自己玩吧"
+                            exit 0
+                        fi
+                    fi
+                else  
+                    touch /var/log/鸡你太美 #创建标志文件
+                    host_number #检查网络
+                    echo -e "\033[33m更新大小1G+，操作不可逆，绿色LED会一直闪烁到重启，尝试安装Docker后压缩直至重启，重启后LED会恢复为默认状态（此提示只显示一次）\033[0m"
+                    echo -e "\e[33m如需恢复备份文件请在安装Docker之前将备份文件docker.tar(xz)文件上传完成(/root目录）\e[0m"
+                    echo -e "\033[31m如果无法连接且红灯长时间不闪烁就拔了重新尝试，建议使用WIFI连接 IP：\033[32m$ip_address  \033[0m\033[31m。\033[31m更新过程中断开连接可以输入 \033[32m x \033[31m 返回会话\033[0m"
+                    read -p $'\e[1;33m脚本仅限学习交流，执行后因不当操作出现其他问题\e[0m\e[1;33m自行承担（解决）\e[0m\e[1;33m，回车继续或者CTRL+C退出: \e[0m'
+                    # 执行 nmcli connection show 命令，并将输出结果传递给 awk 进行处理
+                    connection_info=$(nmcli connection show)
+                    # 提取 UUID 和连接名称
+                    uuid=$(echo "$connection_info" | awk '/wlan0/ {print $2}')
+                    name=$(echo "$connection_info" | awk '/wlan0/ {print $1}')
+                    # 查找连接配置文件
+                    config_file="/etc/NetworkManager/system-connections/$name.nmconnection"
+                    # 读取 psk 的值
+                    psk=$(awk -F "=" '/\[wifi-security\]/ {flag=1} flag && /psk=/ {print $2; flag=0}' "$config_file")
+                    # 输出 psk 的值
+                    file_path6="$script_path/4gwifi"
+                    # 创建文件并写入内容
+                    echo "$name" > "$file_path6"
+                    echo "$psk" >> "$file_path6"
+                    # 读取用户输入的函数(函数引起错误）
+                    read_number() {
+                          echo "提交交换分区大小，低于300（最高3.2G）则不提供更新了（当前emmc损耗$message，注意刷写频率）"
+                          read -p "请输入一个数字（不能超过3200）: " user_input
+                    }
+                    # 验证用户输入是否为数字并且不超过3200
+                    validate_input() {
+                        if [[ "$user_input" == "x" ]]; then
+                            return 2  # 输入为 "x"，跳出循环
+                        elif [[ -z "$user_input" ]]; then
+                            return 1  # 空输入，验证失败
+                        elif [[ "$user_input" =~ ^[0-9]+$ ]]; then
+                            if [[ "$user_input" -le 3200 ]]; then
+                                return 0  # 验证通过
+                            else
+                                echo "输入超过了3200，请重新输入。"
+                                return 1  # 验证失败
+                            fi
+                        else
+                            echo "输入无效，请重新输入一个数字。"
+                            return 1  # 验证失败
+                        fi
+                    }
+                    # 主逻辑
+                    while true; do
+                        read_number
+                        if validate_input; then
+                            break
+                        fi
+                    done
+                    echo "设置的大小是：$user_input，重启后启用"
+                    sudo sh -c 'echo "vswap='"$user_input"'" >> /etc/environment'
+                fi
+            fi
+        fi
+    else
+      echo "Ping失败"
+      host_number
+      # 使用 nmcli 命令列出附近的 Wi-Fi 列表
+      wifi_list=$(nmcli device wifi list | awk 'NR>1 {print $2}')
+      # 显示附近的 Wi-Fi 列表
+      echo "附近的 Wi-Fi 列表："
+      echo "$wifi_list"
+      echo "未找到名为 4gwifi 的文件。手动 Wi-Fi 连接配置。"
+      # 提示用户输入要添加的隐藏 Wi-Fi 网络的信息
+      read -p "请输入要添加的 Wi-Fi 网络的 SSID: " ssid
+      read -p "请输入 Wi-Fi 网络的密码: " password
+      echo
+      # 显示用户确认信息
+      echo "即将添加以下 Wi-Fi 网络连接："
+      echo "SSID: $ssid"
+      echo "密码: $password"
+      read -p "确认要添加该连接吗？(Y/N): " confirm
+      # 根据用户确认进行操作
+      if [[ $confirm =~ ^[Yy]$ ]]; then
+          # 使用 nmcli 添加 Wi-Fi 连接配置
+          nmcli connection add type wifi con-name "$ssid" ifname "*" ssid "$ssid" -- wifi.hidden yes
+          # 配置 Wi-Fi 连接的密码
+          nmcli connection modify "$ssid" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$password"
+          # 激活 Wi-Fi 连接并且检查是否连接成功
+          echo "确认无误后请等待连接"
+          output=$(nmcli connection up "$ssid")
+          # 检查是否存在连接成功的输出
+          if echo "$output" | grep -q "连接已成功激活"; then
+            echo -e "\e[32m连接成功\e[0m $ssid "
+            # 创建文件将名字密码写入配置文件
+            file_path6="$script_path/4gwifi"
+            if [[ -f "$script_path/4gwifi" ]]; then
+                echo "$ssid" > "$file_path6"
+                echo "$password" >> "$file_path6"
+            else
+                echo "创建 4gwifi 文件失败。"
+                echo "如果刷机后需要快速设置可以手动创建文件，第一行写wifi名字，第二行可以写它的密码，第三行可以写交换分区大小"
+            fi
+            # 提示设置的swap大小，写入/etc/environment环境变量变量vswap（交给开机自启脚本），添加开机自启后重启
+            valid_input=false
+            while [ "$valid_input" = false ]; do
+                read -p "虚拟内存大小你想设置多少MB？（低于300只添加自启脚本不更新）: " input
+                # 检查输入是否只包含0到9以内的字符并且不超过5000
+                if [[ "$input" =~ ^[0-9]+$ ]] && [ "$input" -le 3200 ]; then
+                    valid_input=true
+                else
+                    echo "输入无效，请重新输入。"
+                fi
+            done
+            sudo sh -c 'echo "swap=0" >> /etc/environment'
+            sudo sed -i "s/^swap=.*$/vswap=$input/" /etc/environment
+            echo -e "\033[1;33m已经提交更改，重启后稍加等待即可\033[0m"
+            read -p "回车重启尝试配置..."
+            # 执行函数后退出脚本（开机执行配置）
+            sudo chmod +x $script_path/$script_name
+            quick_reboot
+          else
+            echo -e "\e[31m连接失败 $ssid \e[0m，手动设置正常后再执行吧"
+          fi
+      else
+          echo "已取消添加 Wi-Fi 连接。"
+      fi
+    fi
+fi
+}
 ########################################################################################################################################################################################
 
 function ip2 {
@@ -1434,45 +2115,44 @@ fi
 
 chmod +x /usr/local/bin/z
 
-}
-########################################################################################################################################################################################
+script_path="/usr/local/bin/u"
+script_content0='#!/bin/bash
 
-if ! ls /boot/vmlinuz-5.15.0-jsbsbxjxh66+ &> /dev/null && ! ls /boot/vmlinuz-6.4.0-rc4-jsbsbxjxh66-compile+ &> /dev/null ; then
-    echo "脚本无法在此设备上运行"
-    sudo rm /root/0
-    exit 1
-fi
+# 设置尝试次数
+max_attempts=3
+attempt=1
 
-if [ -e "/var/log/鸡你太美" ]; then
-    if [ -f "/var/log/up.log" ]; then
-        echo "脚本已经执行完成了"
-        exit 0
+while [ $attempt -le $max_attempts ]; do
+    # 执行wget命令下载文件
+    wget "https://raw.githubusercontent.com/xiezh123/132/main/1" -O "/usr/local/bin/z"
+    
+    # 检查文件是否为空文件
+    if [ -s "/usr/local/bin/z" ]; then
+        echo "文件已成功下载并不为空。"
+        break
     else
-        current_time=$(date +"%H:%M")  # 获取当前时间，精确到小时和分钟
-        current_date=$(date +"%Y-%m-%d")  # 获取当前日期
-        echo "  _____ _                 _    _               "
-        echo " |_   _| |               | |  (_)              "
-        echo "   | | | |__   __ _ _ __ | | ___ _ __   __ _   "
-        echo "   | | | '_ \\ / _\` | '_ \\| |/ / | '_ \\ / _\` |  "
-        echo "  _| |_| | | | (_| | | | |   <| | | | | (_| |  "
-        echo " |_____|_| |_|\\__,_|_| |_|_|\\_\\_|_| |_|\\__, |  "
-        echo "                                        __/ |  "
-        echo "                                       |___/   "
-        echo "$current_date  $current_time"
-        ip0
+        echo "文件为空或下载失败。尝试重新下载（尝试次数：$attempt）。"
+        attempt=$((attempt+1))
     fi
-else
-    touch /var/log/鸡你太美
-    ip0
-fi
+done
 
-version=$(cat /etc/debian_version)
+if [ $attempt -gt $max_attempts ]; then
+    echo "无法下载文件。尝试次数已达到上限。"
+fi'
 
+echo "$script_content0" > "$script_path"
+chmod +x "$script_path"
+
+}
+
+########################################################################################################################################################################################
+date -s "$(curl -s --head http://www.example.com | grep '^Date:' | cut -d' ' -f3-6)Z" #更新系统时间
+sleep 1
 if [[ "$version" == "12"* ]]; then
-    echo "系统版本是 Debian 12。"
+    echo "系统版本是 Debian 12，脚本没支持"
     ip2
+    exit 0
 else
-    ip1
-    echo "完全启动大概需要3分钟"
+    ipx
     echo -e "\033[33;32m如需执行脚本，可直接在终端输入：z，f，b\033[0m"
 fi
