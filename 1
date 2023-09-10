@@ -818,6 +818,90 @@ echo -e "${GREEN}请使用远程桌面客户端连接到服务器，使用root�
   fi
 
 elif [[ "$option" == "3" ]]; then # 开热点####################################################################################################################################
+  check_sys_hotspot() {
+          # 提示用户输入热点名称和密码(需要更改为不能超过8个值）
+          if grep -q "4Gwifi=" /etc/environment; then
+              # 从文件中读取变量内容
+              read -t 10 -n 1 -s -r -p "检查到你已经设置热点，重新配置吗？（按回车键继续，10秒后自动退出）"
+              # 检查用户是否回车确认或等待超时
+              if [[ $? -ne 0 ]]; then
+                  echo "等待超时或无效按键。脚本已退出。"
+                  exit 1
+              fi
+              hotspot="$hotspot" nmcli connection down "$hotspot"
+          else
+              read -t 10 -n 1 -s -r -p "开机自启的，确定需要设置热点吗？？（按回车键继续，10秒后自动退出）"
+              # 检查用户是否回车确认或等待超时
+              if [[ $? -ne 0 ]]; then
+                  echo "等待超时或无效按键。脚本已退出。"
+                  exit 1
+              fi
+          fi
+          # 读取并验证热点密码
+          while true; do
+              read -p "请输入热点名称: " hotspot_ssid
+              read -p "请输入热点密码（只能为数字且不能低于8位数）: " hotspot_password
+
+              # 验证密码是否只包含数字
+              if ! [[ $hotspot_password =~ ^[0-9]+$ ]]; then
+                  echo "密码只能为数字，请重新输入。"
+                  continue
+              fi
+
+              # 验证密码是否少于8位数
+              if (( ${#hotspot_password} < 8 )); then
+                  echo "密码不能少于8位数，请重新输入。"
+                  continue
+              fi
+
+              break
+          done
+          # 提示用户确认输入
+          echo "您输入的热点名称为: $hotspot_ssid"
+          echo "您输入的热点密码为: $hotspot_password"
+          read -t 10 -n 1 -s -r -p "请确认输入是否正确，按回车键继续，或者等待10秒后重新输入..."
+          # 如果不一致则启用热点并且向 $hotspot 写入新的 UUID
+          check_update_hotspot() {
+              local var1=$1
+              local var2=$2
+              if [[ -f "/etc/environment" ]]; then
+                  # 检查文件内容是否包含 hotspot 变量
+                  if grep -q "^hotspot=" "/etc/environment"; then
+                      sed -i 's/^hotspot=.*/hotspot=0/' /etc/environment
+                  else
+                      sudo sh -c 'echo "hotspot=0" >> /etc/environment'
+                  fi
+              fi
+              output3=$(nmcli d wifi hotspot ifname wlan0 con-name wifi ssid "$var1" band bg channel 11 password "$var2" 2>&1 | tee /dev/tty) # 更改名字密码为变量
+              # 提取连接的 UUID
+              uuid1=$(echo "${output3}" | awk '{print $2}')
+              # 去除双引号和前缀 "wlan0"
+              uuid1=${uuid1//\"/}
+              uuid1=${uuid1#wlan0}
+              # 去除另一行的 "nmcli"
+              uuid1=$(echo "$uuid1" | sed '/^$/d' | sed 's/nmcli//g')
+              # 将 UUID 写入文件
+              sed -i "s/^hotspot=.*/hotspot=$(echo "$uuid1" | sed 's/\//\\\//g')/g" /etc/environment
+              sleep 3
+              nmcli dev wifi show-password
+              echo "出现问题请重启"
+          }
+          # 检查用户是否回车确认或等待超时
+          if [[ $? -ne 0 ]]; then
+              echo "等待超时或无效按键。请重新运行脚本输入热点名称和密码。"
+              exit 1
+          fi
+          # 检查 /etc/environment 文件是否含有变量 4Gwifi
+          if grep -q "4Gwifi=" /etc/environment; then
+              # 更改变量内容为用户输入的热点名称和密码
+              sed -i "s|4Gwifi=.*|4Gwifi=$hotspot_ssid//$hotspot_password|" /etc/environment
+              check_update_hotspot "$hotspot_ssid" "$hotspot_password"
+          else
+              # 创建变量并设置内容为用户输入的热点名称和密码
+              echo "4Gwifi=$hotspot_ssid//$hotspot_password" >> /etc/environment
+              check_update_hotspot "$hotspot_ssid" "$hotspot_password"
+          fi
+  }
   output=$(mmcli -m 0)
   # 提取所需内容
   filtered_output=$(echo "$output" | awk '/Status/,/signal quality/ {print}') #状态
@@ -838,44 +922,7 @@ elif [[ "$option" == "3" ]]; then # 开热点###################################
       echo "网络类型：$network_type"
       echo "电源状态：$power_state"
       read -p "回车配置热点..."
-      # 提示用户输入热点名称和密码
-      if grep -q "4Gwifi=" /etc/environment; then
-          # 从文件中读取变量内容
-          read -t 10 -n 1 -s -r -p "检查到你已经设置热点，重新配置吗？（按回车键继续，10秒后自动退出）"
-          # 检查用户是否回车确认或等待超时
-          if [[ $? -ne 0 ]]; then
-              echo "等待超时或无效按键。脚本已退出。"
-              exit 1
-          fi
-      else
-          read -t 10 -n 1 -s -r -p "开机自启的，确定需要设置热点吗？？（按回车键继续，10秒后自动退出）"
-          # 检查用户是否回车确认或等待超时
-          if [[ $? -ne 0 ]]; then
-              echo "等待超时或无效按键。脚本已退出。"
-              exit 1
-          fi
-      fi
-      read -p "请输入热点名称: " hotspot_ssid
-      read -p "请输入热点密码: " hotspot_password
-      # 提示用户确认输入
-      echo "您输入的热点名称为: $hotspot_ssid"
-      echo "您输入的热点密码为: $hotspot_password"
-      read -t 10 -n 1 -s -r -p "请确认输入是否正确，按回车键继续，或者等待10秒后重新输入..."
-      # 检查用户是否回车确认或等待超时
-      if [[ $? -ne 0 ]]; then
-          echo "等待超时或无效按键。请重新运行脚本输入热点名称和密码。"
-          exit 1
-      fi
-      # 检查 /etc/environment 文件是否含有变量 4Gwifi
-      if grep -q "4Gwifi=" /etc/environment; then
-          # 更改变量内容为用户输入的热点名称和密码
-          sed -i "s|4Gwifi=.*|4Gwifi=$hotspot_ssid//$hotspot_password|" /etc/environment
-      else
-          # 创建变量并设置内容为用户输入的热点名称和密码
-          echo "4Gwifi=$hotspot_ssid//$hotspot_password" >> /etc/environment
-      fi
-      # 执行 nmcli 创建热点
-      nmcli d wifi hotspot ifname wlan0 con-name wifi ssid "$hotspot_ssid" band bg channel 11 password "$hotspot_password"
+      check_sys_hotspot
   elif echo "$filtered_output" | grep -q -E "state:[[:space:]]+registered"; then
       echo "当前网络已注册，执行 nmtui 前往启用即可"
       echo "信号质量：$signal_quality"
@@ -883,6 +930,7 @@ elif [[ "$option" == "3" ]]; then # 开热点###################################
       echo "电源状态：$power_state"
   elif echo "$filtered_output" | grep -q -E "state:[[:space:]]+failed"; then
       echo "没有信号，请检查基带是否已经更换或者插入SIM卡"
+      check_sys_hotspot
   elif echo "$filtered_output" | grep -q -E "state:[[:space:]]+enabled"; then
       echo "请检查基带是否已经更换(使用刷机包/modem解压并且覆盖到Debian//lib/firmware目录下）"
       echo "信号质量：$signal_quality"
