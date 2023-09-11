@@ -1,5 +1,96 @@
 #!/bin/bash
+############################################################热点设置
+wifisys_hotspot() {
+    # 检查 /etc/environment 文件是否含有变量 4Gwifi
+    if grep -q "4Gwifi=" /etc/environment; then
+        # 执行 nmcli connection show 命令，并将输出保存到变量中
+        output=$(nmcli connection show)
+        # 检查是否存在包含 "modem" 的连接
+        connection_name=$(echo "$output" | awk '/modem/ {print $1}')
+        if [ -n "$connection_name" ]; then
+          # 检查连接是否已激活
+          active_connection=$(echo "$output" | awk '/[[:space:]]+connected[[:space:]]+/ {print $1}')
+          if [ "$active_connection" == "$connection_name" ]; then
+            echo -e "连接已经激活: \e[32m$active_connection\e[0m"
+          else
+            # 激活连接
+            nmcli connection up "$connection_name"
+            echo -e "已激活连接: \e[32m$connection_name\e[0m"
+          fi
+        else
+          echo "未找到包含 'modem' 的连接"
+        fi
+        sleep 1
+        # 执行 nmcli connection show 命令，并将输出保存到变量中
+        output=$(nmcli connection show)
 
+        # 检查输出是否包含 hotspot 变量的值
+        if [[ $output =~ $hotspot ]]; then
+            # 查找名字以 wifi. 或 wifi- 开头的文件，并匹配 hotspot 变量
+            files=$(ls /etc/NetworkManager/system-connections/ | grep -E '^wifi(\.|-).*' | grep -v "$hotspot")
+            # 删除匹配的文件（保留 hotspot 对应的文件）
+            for file in $files; do
+                rm "/etc/NetworkManager/system-connections/$file"
+            done
+            # 执行 nmcli 连接热点
+            hotspot="$hotspot" nmcli connection up "$hotspot"
+        else
+            # 读取 /etc/environment 文件中的 4Gwifi 变量
+            four_g_wifi=$(grep -oP '^4Gwifi=\K.*' /etc/environment)
+            # 拆分名字和密码
+            IFS='//' read -r name password <<< "$four_g_wifi"
+            # 输出名字和密码
+            echo "名字: $name"
+            echo "密码: $password"
+            # 如果不一致则启用热点并且向 $hotspot 写入新的 UUID
+            output3=$(nmcli d wifi hotspot ifname wlan0 con-name wifi ssid "$name" band bg channel 11 password "$password") # 更改名字密码为变量
+            # 提取连接的 UUID
+            uuid1=$(echo "${output3}" | awk '{print $2}')
+            # 去除双引号和前缀 "wlan0"
+            uuid1=${uuid1//\"/}
+            uuid1=${uuid1#wlan0}
+            # 去除另一行的 "nmcli"
+            uuid1=$(echo "$uuid1" | sed '/^$/d' | sed 's/nmcli//g')
+            # 将 UUID 写入文件
+            echo "$uuid1"
+            # 检查 /etc/environment 文件是否存在
+            if [[ -f /etc/environment ]]; then
+                # 检查 /etc/environment 文件中是否已经定义了变量 $hotspot
+                if grep -q "^hotspot=" /etc/environment; then
+                    # 如果已经定义了变量 $hotspot，则使用 sed 命令进行替换
+                    sed -i "s/^hotspot=.*/hotspot=$uuid1/" /etc/environment
+                else
+                    # 如果没有定义变量 $hotspot，则在文件末尾添加新的变量定义
+                    echo "hotspot=$uuid1" >> /etc/environment
+                fi
+            fi
+        fi
+    else
+        echo "变量 4Gwifi 不存在。跳过创建热点。"
+    fi
+    # 检查环境变量的值
+    if [[ "${GWiFi1}" == "1" ]]; then
+        echo "环境变量 GWiFi1 的值为 1"
+    elif [[ "${GWiFi1}" == "0" ]]; then
+        output5=$(byobu-enable 2>&1)
+        if [[ $output5 == *"byobu-disable"* ]]; then
+            echo "Byobu 已启用"
+            byobu-disable
+            sleep 1
+            byobu-enable
+        else
+            echo "Byobu 未启用"
+            byobu-disable
+            sleep 1
+            byobu-enable
+        fi
+        echo "环境变量 GWiFi1 的值为 0"
+        # 执行其他操作...
+    else
+        echo "环境变量 GWiFi1 的值不是 0 或 1。"
+        # 执行其他操作...
+    fi
+}
 ############################################################DOCKER备份
 function dockerbackupfiles() {
 
@@ -266,7 +357,7 @@ function show_menu() {
 show_menu
 
 }
-############################################################DOCKER备份
+
 ###############################################################################################################################
 #检查变量
 FILE_PATH=/var/log/鸡你太美
@@ -819,7 +910,7 @@ echo -e "${GREEN}请使用远程桌面客户端连接到服务器，使用root�
 
 elif [[ "$option" == "3" ]]; then # 开热点####################################################################################################################################
   check_sys_hotspot() {
-          # 提示用户输入热点名称和密码(需要更改为不能超过8个值）
+          # 提示用户输入热点名称和密码
           if grep -q "4Gwifi=" /etc/environment; then
               # 从文件中读取变量内容
               read -t 10 -n 1 -s -r -p "检查到你已经设置热点，重新配置吗？（按回车键继续，10秒后自动退出）"
