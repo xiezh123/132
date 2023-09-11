@@ -91,6 +91,11 @@ wifisys_hotspot() {
         # 执行其他操作...
     fi
 }
+
+if [ "$1" = "wifisys_hotspot" ]; then
+  wifisys_hotspot
+  return
+fi
 ############################################################DOCKER备份
 function dockerbackupfiles() {
 
