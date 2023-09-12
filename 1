@@ -429,7 +429,10 @@ function show_menu() {
 show_menu
 
 }
-
+if [ "$1" = "dockerbackupfiles" ]; then
+  dockerbackupfiles
+  return
+fi
 ###############################################################################################################################
 #检查变量
 FILE_PATH=/var/log/鸡你太美
