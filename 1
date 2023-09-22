@@ -876,35 +876,56 @@ elif [ "$option" == "2" ]; then
   echo "CPU 频率已修改为："
   sudo cpufreq-info | grep "current CPU frequency"
   elif [ "$check_option" == "g" ]; then
-    set -e
-    # 1. 安装git
-    sudo apt install git -y
-    # 2. 安装zsh
-    sudo apt install zsh -y
-    # 3. 下载oh-my-zsh安装脚本
-    wget https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
-    # 4. 执行oh-my-zsh安装脚本
-    sh install.sh <<EOF
-    Y
-    EOF
-    # 5. 安装zeta-zsh-theme
-    bash -c "$(curl -fsSL https://raw.githubusercontent.com/skylerlee/zeta-zsh-theme/master/scripts/install.sh)"
-    # 6. 安装zsh-autosuggestions插件
-    git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
-    # 7. 安装zsh-syntax-highlighting插件
-    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git
-    # 8. 将zsh-syntax-highlighting插件添加到.zshrc文件
-    echo "source ${(q-)PWD}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" >> ${ZDOTDIR:-$HOME}/.zshrc
-    # 9. 刷新当前Shell的配置
-    source ./zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-    # 10. 切换到用户的根目录
-    cd
-    # 11. 修改.zshrc文件中的plugins配置
-    sed -i 's/plugins=(git)/plugins=(git zsh-autosuggestions)/' .zshrc
-    # 12. 执行zsh
-    zsh
-    # 13.设置默认终端
-    chsh -s /bin/zsh
+    rm -rf /root/.oh-my-zsh
+    ssh_bash() {
+    script_content5='#!/bin/bash
+
+set -e
+
+# 1. 安装git
+sudo apt install git -y
+# 2. 安装zsh
+sudo apt install zsh -y
+# 3. 下载oh-my-zsh安装脚本
+wget https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+# 4. 执行oh-my-zsh安装脚本
+sh install.sh <<EOF
+Y
+EOF
+
+
+# 5. 安装zeta-zsh-theme
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/skylerlee/zeta-zsh-theme/master/scripts/install.sh)"
+
+# 6. 安装zsh-autosuggestions插件
+git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
+# 7. 安装zsh-syntax-highlighting插件
+git clone https://github.com/zsh-users/zsh-syntax-highlighting.git
+
+# 8. 将zsh-syntax-highlighting插件添加到.zshrc文件
+echo "source \${(q-)PWD}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" >> \${ZDOTDIR:-\$HOME}/.zshrc
+
+# 9. 刷新当前Shell的配置
+source ./zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+# 10. 切换到用户的根目录
+cd
+
+# 11. 修改.zshrc文件中的plugins配置
+sed -i "s/plugins=(git)/plugins=(git zsh-autosuggestions)/" .zshrc
+
+# 12. 执行zsh
+zsh
+
+# 13.设置默认终端
+chsh -s /bin/zsh'
+
+    echo "$script_content5" > zsh.sh
+    }
+    ssh_bash
+    chmod +x zsh.sh
+    bash zsh.sh
+    sudo rm zsh.sh
   elif [ "$check_option" == "h" ]; then
     echo "来自酷安 https://www.coolapk.com/feed/42477870? "
     sleep 3
